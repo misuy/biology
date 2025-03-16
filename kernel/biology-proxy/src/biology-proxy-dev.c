@@ -3,6 +3,7 @@
 #include <linux/blkdev.h>
 
 #include "biology-proxy-bio.h"
+#include "biology-proxy-common.h"
 
 struct biology_proxy_devs {
     struct list_head list;
@@ -35,8 +36,6 @@ static void biology_proxy_dev_submit_bio(struct bio *bio)
 {
     struct biology_proxy_dev *dev = bio->bi_bdev->bd_queue->queuedata;
 
-    printk("submit_bio begin\n");
-
     biology_proxy_process_bio(dev, bio);
 }
 
@@ -53,35 +52,45 @@ int biology_proxy_dev_create(struct biology_proxy_dev_config cfg)
 
     if (!dev) {
         ret = -ENOMEM;
+        BIOLOGY_PROXY_ERR("failed to allocate memory for biology_proxy_dev structure");
         goto err;
     }
 
-    queue_limits_stack_bdev(&lims, cfg.target, 0, "biology-proxy");
+    dev->state.target = bdev_file_open_by_path(cfg.target_path,
+                                               FMODE_READ|FMODE_WRITE,
+                                               THIS_MODULE, NULL);
+    if (IS_ERR(dev->state.target)) {
+        ret = PTR_ERR(dev->state.target);
+        BIOLOGY_PROXY_ERR("failed to open bdev: %s, err: %i", cfg.target_path, ret);
+        goto err_free_dev;
+    }
+
+    queue_limits_stack_bdev(&lims, file_bdev(dev->state.target), 0, "biology-proxy");
 
     dev->gd = blk_alloc_disk(&lims, NUMA_NO_NODE);
     if (IS_ERR(dev->gd)) {
         ret = PTR_ERR(dev->gd);
-        goto err_free_dev;
+        BIOLOGY_PROXY_ERR("failed to alloc disk, err: %i", ret);
+        goto err_put_file;
     }
-
-    dev->cfg = cfg;
 
     dev->gd->queue->queuedata = dev;
     dev->gd->major = 0;
     dev->gd->first_minor = 0;
     dev->gd->flags = GENHD_FL_NO_PART;
     dev->gd->fops = &biology_proxy_dev_ops;
-    set_capacity(dev->gd, bdev_nr_sectors(cfg.target));
+    set_capacity(dev->gd, bdev_nr_sectors(file_bdev(dev->state.target)));
 
     blk_queue_flag_set(QUEUE_FLAG_NOMERGES, dev->gd->queue);
     blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, dev->gd->queue);
 
     snprintf(dev->gd->disk_name, BDEVNAME_SIZE, "%s-bp",
-             cfg.target->bd_disk->disk_name);
+             file_bdev(dev->state.target)->bd_disk->disk_name);
 
     ret = add_disk(dev->gd);
     if (ret) {
-        goto err_del_gd;
+        BIOLOGY_PROXY_ERR("failed to add disk, err: %i", ret);
+        goto err_put_disk;
     }
 
     dev->bdev = dev->gd->part0;
@@ -89,10 +98,15 @@ int biology_proxy_dev_create(struct biology_proxy_dev_config cfg)
 
     biology_proxy_devs_add(dev);
 
+    BIOLOGY_PROXY_INFO("created proxy device %s (target = %s)",
+                       dev->gd->disk_name, cfg.target_path);
+
     return 0;
 
-err_del_gd:
-    del_gendisk(dev->gd);
+err_put_disk:
+    put_disk(dev->gd);
+err_put_file:
+    bdev_fput(dev->state.target);
 err_free_dev:
     kfree(dev);
 err:
@@ -101,8 +115,10 @@ err:
 
 static void _biology_proxy_dev_destroy(struct biology_proxy_dev *dev)
 {
+    BIOLOGY_PROXY_INFO("removed proxy device %s", dev->gd->disk_name);
     del_gendisk(dev->gd);
     put_disk(dev->gd);
+    bdev_fput(dev->state.target);
     kfree(dev);
 }
 

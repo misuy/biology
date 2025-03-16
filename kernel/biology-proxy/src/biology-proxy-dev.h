@@ -5,17 +5,17 @@
 #include <linux/types.h>
 
 struct biology_proxy_dev_config {
-    struct block_device *target;
+    const char *target_path;
 };
 
 struct biology_proxy_dev_state {
+    struct file *target;
     atomic_t bio_id_counter;
 };
 
 struct biology_proxy_dev {
     struct block_device *bdev;
     struct gendisk *gd;
-    struct biology_proxy_dev_config cfg;
     struct biology_proxy_dev_state state;
     struct list_head list_node;
 };

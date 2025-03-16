@@ -9,6 +9,8 @@ struct biology_proxy_bio_info {
     uint32_t id;
     ktime_t start_ts;
     ktime_t end_ts;
+    sector_t sector;
+    unsigned int size;
 };
 
 struct biology_proxy_bio {
