@@ -1,35 +1,35 @@
-#ifndef BIOLOGY_PROXY_DEV_H_
-#define BIOLOGY_PROXY_DEV_H_
+#ifndef BLGY_PRXY_DEV_H_
+#define BLGY_PRXY_DEV_H_
 
 #include <linux/atomic.h>
 #include <linux/types.h>
 
-struct biology_proxy_dev_config {
+struct blgy_prxy_dev_config {
     const char *target_path;
 };
 
-struct biology_proxy_dev_state {
+struct blgy_prxy_dev_state {
     struct file *target;
     atomic_t bio_id_counter;
 };
 
-struct biology_proxy_dev {
+struct blgy_prxy_dev {
     struct block_device *bdev;
     struct gendisk *gd;
-    struct biology_proxy_dev_state state;
+    struct blgy_prxy_dev_state state;
     struct list_head list_node;
 };
 
 static inline uint32_t
-biology_proxy_dev_next_bio_id(struct biology_proxy_dev *dev)
+blgy_prxy_dev_next_bio_id(struct blgy_prxy_dev *dev)
 {
     return atomic_inc_return(&dev->state.bio_id_counter);
 }
 
-int biology_proxy_devs_init(void);
-void biology_proxy_devs_destroy(void);
+int blgy_prxy_devs_init(void);
+void blgy_prxy_devs_destroy(void);
 
-int biology_proxy_dev_create(struct biology_proxy_dev_config cfg);
-void biology_proxy_dev_destroy(struct biology_proxy_dev *dev);
+int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg);
+void blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev);
 
 #endif

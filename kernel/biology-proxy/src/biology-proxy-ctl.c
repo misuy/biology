@@ -10,7 +10,7 @@
 static struct kobject ctl_kobject;
 
 
-struct biology_proxy_ctl_sysfs_entry {
+struct blgy_prxy_ctl_sysfs_entry {
     struct attribute attr;
     ssize_t (*show) (char *);
     ssize_t (*store) (const char *, size_t);
@@ -19,7 +19,7 @@ struct biology_proxy_ctl_sysfs_entry {
 static ssize_t ctl_sysfs_entry_ctl_store(const char *buf, size_t cnt)
 {
     int ret = 0;
-    struct biology_proxy_dev_config config = { 0 };
+    struct blgy_prxy_dev_config config = { 0 };
     size_t ptr = 0;
     while ((ptr < cnt) && buf[ptr] != ' ') {
         ptr++;
@@ -31,8 +31,8 @@ static ssize_t ctl_sysfs_entry_ctl_store(const char *buf, size_t cnt)
     config.target_path = buf + ptr + 1;
 
     if (strncmp("trace", buf, ptr) == 0) {
-        if ((ret = biology_proxy_dev_create(config))) {
-            BIOLOGY_PROXY_ERR("failed to create biology proxy device, err: %i", ret);
+        if ((ret = blgy_prxy_dev_create(config))) {
+            BLGY_PRXY_ERR("failed to create biology proxy device, err: %i", ret);
             return ret;
         }
         return cnt;
@@ -41,7 +41,7 @@ static ssize_t ctl_sysfs_entry_ctl_store(const char *buf, size_t cnt)
     return -EINVAL;
 }
 
-static struct biology_proxy_ctl_sysfs_entry sysfs_entry_ctl = {
+static struct blgy_prxy_ctl_sysfs_entry sysfs_entry_ctl = {
     .attr = { .name = "ctl", .mode = S_IWUSR },
     .store = ctl_sysfs_entry_ctl_store,
 };
@@ -50,8 +50,8 @@ static struct biology_proxy_ctl_sysfs_entry sysfs_entry_ctl = {
 static ssize_t ctl_sysfs_attr_show(struct kobject *kobj, struct attribute *attr,
                                    char *page)
 {
-    struct biology_proxy_ctl_sysfs_entry *entry =
-        container_of(attr, struct biology_proxy_ctl_sysfs_entry, attr);
+    struct blgy_prxy_ctl_sysfs_entry *entry =
+        container_of(attr, struct blgy_prxy_ctl_sysfs_entry, attr);
 
     return entry->show(page);
 }
@@ -59,8 +59,8 @@ static ssize_t ctl_sysfs_attr_show(struct kobject *kobj, struct attribute *attr,
 static ssize_t ctl_sysfs_attr_store(struct kobject *kobj, struct attribute *attr,
                                     const char *page, size_t cnt)
 {
-    struct biology_proxy_ctl_sysfs_entry *entry =
-        container_of(attr, struct biology_proxy_ctl_sysfs_entry, attr);
+    struct blgy_prxy_ctl_sysfs_entry *entry =
+        container_of(attr, struct blgy_prxy_ctl_sysfs_entry, attr);
 
     return entry->store(page, cnt);
 }
@@ -84,14 +84,14 @@ static struct kobj_type ktype = {
 };
 
 
-int biology_proxy_ctl_init(void)
+int blgy_prxy_ctl_init(void)
 {
     int ret;
     if ((ret = kobject_init_and_add(&ctl_kobject, &ktype,
                                     &(((struct module *)(THIS_MODULE))->mkobj).kobj,
                                     "ctl")))
     {
-        BIOLOGY_PROXY_ERR("failed to init sysfs ctl kobject, err: %i", ret);
+        BLGY_PRXY_ERR("failed to init sysfs ctl kobject, err: %i", ret);
         return ret;
     }
 
@@ -99,7 +99,7 @@ int biology_proxy_ctl_init(void)
     return 0;
 }
 
-void biology_proxy_ctl_destroy(void)
+void blgy_prxy_ctl_destroy(void)
 {
     kobject_uevent(&ctl_kobject, KOBJ_REMOVE);
     kobject_del(&ctl_kobject);

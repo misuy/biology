@@ -5,36 +5,36 @@
 #include "biology-proxy-ctl.h"
 #include "biology-proxy-dev.h"
 
-static int __init biology_proxy_init(void)
+static int __init blgy_prxy_init(void)
 {
     int ret;
-    if ((ret = biology_proxy_devs_init())) {
+    if ((ret = blgy_prxy_devs_init())) {
         goto err;
     }
 
-    if ((ret = biology_proxy_ctl_init())) {
+    if ((ret = blgy_prxy_ctl_init())) {
         goto err_devs_destroy;
     }
 
-    BIOLOGY_PROXY_INFO("module inserted");
+    BLGY_PRXY_INFO("module inited");
 
     return 0;
 
 err_devs_destroy:
-    biology_proxy_devs_destroy();
+    blgy_prxy_devs_destroy();
 err:
     return ret;
 }
 
-static void __exit biology_proxy_exit(void)
+static void __exit blgy_prxy_exit(void)
 {
-    biology_proxy_ctl_destroy();
-    biology_proxy_devs_destroy();
-    BIOLOGY_PROXY_INFO("module removed");
+    blgy_prxy_ctl_destroy();
+    blgy_prxy_devs_destroy();
+    BLGY_PRXY_INFO("module removed");
 }
 
-module_init(biology_proxy_init);
-module_exit(biology_proxy_exit);
+module_init(blgy_prxy_init);
+module_exit(blgy_prxy_exit);
 
 MODULE_AUTHOR("Mikhail Peredriy");
 MODULE_LICENSE("GPL");
