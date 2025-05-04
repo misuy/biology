@@ -4,12 +4,14 @@
 
 #include "biology-proxy-bio.h"
 #include "biology-proxy-common.h"
+#include "biology-proxy-dev-ctl.h"
 
 struct blgy_prxy_devs {
     struct list_head list;
     struct mutex lock;
 };
 
+atomic_t devs_cnt;
 struct blgy_prxy_devs devs;
 
 static void blgy_prxy_devs_add(struct blgy_prxy_dev *dev)
@@ -30,25 +32,71 @@ static inline void
 blgy_prxy_dev_state_init(struct blgy_prxy_dev_state *state)
 {
     atomic_set(&state->bio_id_counter, -1);
+    state->enabled = false;
 }
 
 static void blgy_prxy_dev_submit_bio(struct bio *bio)
 {
     struct blgy_prxy_dev *dev = bio->bi_bdev->bd_queue->queuedata;
 
-    blgy_prxy_process_bio(dev, bio);
+    if (dev->state.enabled) {
+        blgy_prxy_process_bio(dev, bio);
+    }
+    else {
+        bio_set_dev(bio, file_bdev(dev->state.target));
+        submit_bio_noacct(bio);
+    }
 }
 
 struct block_device_operations blgy_prxy_dev_ops = {
     .submit_bio = blgy_prxy_dev_submit_bio,
 };
 
+int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
+                         struct blgy_prxy_dev_enable_config config)
+{
+    int ret;
+
+    if (dev->dump)
+        return -EALREADY;
+
+    dev->dump = kzalloc(sizeof(struct blgy_prxy_dump), GFP_KERNEL);
+    if (!dev->dump)
+        return -ENOMEM;
+
+    if ((ret = blgy_prxy_dump_init(dev->dump, config.dump_dir))) {
+        kfree(dev->dump);
+        dev->dump = NULL;
+        return ret;
+    }
+
+    dev->state.enabled = true;
+
+    BLGY_PRXY_INFO("proxy device %s enabled", dev->gd->disk_name);
+
+    return 0;
+}
+
+void blgy_prxy_dev_disable(struct blgy_prxy_dev *dev)
+{
+    dev->state.enabled = false;
+
+    if (!dev->dump)
+        return;
+
+    blgy_prxy_dump_destroy(dev->dump);
+    kfree(dev->dump);
+    dev->dump = NULL;
+
+    BLGY_PRXY_INFO("proxy device %s disabled", dev->gd->disk_name);
+}
+
 int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
 {
     int ret = 0;
     struct queue_limits lims = { 0 };
     struct blgy_prxy_dev *dev =
-        kmalloc(sizeof(struct blgy_prxy_dev), GFP_KERNEL);
+        kzalloc(sizeof(struct blgy_prxy_dev), GFP_KERNEL);
 
     if (!dev) {
         ret = -ENOMEM;
@@ -96,6 +144,13 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
     dev->bdev = dev->gd->part0;
     blgy_prxy_dev_state_init(&dev->state);
 
+    ret = blgy_prxy_dev_ctl_init(dev);
+    if (ret) {
+        BLGY_PRXY_ERR("failed to init device sysfs, err: %i", ret);
+        goto err_del_gendisk;
+    }
+
+    atomic_inc(&devs_cnt);
     blgy_prxy_devs_add(dev);
 
     BLGY_PRXY_INFO("created proxy device %s (target = %s)",
@@ -103,6 +158,8 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
 
     return 0;
 
+err_del_gendisk:
+    del_gendisk(dev->gd);
 err_put_disk:
     put_disk(dev->gd);
 err_put_file:
@@ -113,13 +170,45 @@ err:
     return ret;
 }
 
-static void _blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev)
+#define BLGY_PRXY_DEV_DESTROY_WORK_DELAY_MS 300
+
+struct blgy_prxy_dev_destroy_work {
+    struct delayed_work work;
+    struct blgy_prxy_dev *dev;
+};
+
+static void _blgy_prxy_dev_destroy_work(struct work_struct *work)
 {
-    BLGY_PRXY_INFO("removed proxy device %s", dev->gd->disk_name);
+    struct blgy_prxy_dev_destroy_work *destroy_work =
+        container_of(to_delayed_work(work), struct blgy_prxy_dev_destroy_work,
+                     work);
+    struct blgy_prxy_dev *dev = destroy_work->dev;
+
+    BLGY_PRXY_INFO("destroying proxy device %s", dev->gd->disk_name);
+
+    blgy_prxy_dev_ctl_destroy(dev);
     del_gendisk(dev->gd);
     put_disk(dev->gd);
     bdev_fput(dev->state.target);
     kfree(dev);
+    kfree(destroy_work);
+    atomic_dec(&devs_cnt);
+}
+
+static void _blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev)
+{
+    struct blgy_prxy_dev_destroy_work *work =
+        kmalloc(sizeof(struct blgy_prxy_dev_destroy_work), GFP_KERNEL);
+
+    if (!work) {
+        BLGY_PRXY_ERR("failed to allocate memory for dev %s destroy work", dev->gd->disk_name);
+        return;
+    }
+
+    work->dev = dev;
+    INIT_DELAYED_WORK(&work->work, _blgy_prxy_dev_destroy_work);
+    queue_delayed_work(system_unbound_wq, &work->work,
+                       msecs_to_jiffies(BLGY_PRXY_DEV_DESTROY_WORK_DELAY_MS));
 }
 
 void blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev)
@@ -130,6 +219,7 @@ void blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev)
 
 int blgy_prxy_devs_init(void)
 {
+    atomic_set(&devs_cnt, 0);
     mutex_init(&devs.lock);
     INIT_LIST_HEAD(&devs.list);
     return 0;
@@ -138,10 +228,13 @@ int blgy_prxy_devs_init(void)
 void blgy_prxy_devs_destroy(void)
 {
     struct blgy_prxy_dev *pos = NULL, *n = NULL;
+
     mutex_lock(&devs.lock);
     list_for_each_entry_safe(pos, n, &devs.list, list_node) {
         list_del(&pos->list_node);
         _blgy_prxy_dev_destroy(pos);
     }
     mutex_unlock(&devs.lock);
+
+    while (atomic_read(&devs_cnt) != 0);
 }

@@ -3,6 +3,13 @@
 
 #include <linux/atomic.h>
 #include <linux/types.h>
+#include <linux/kobject.h>
+
+#include "biology-proxy-dump.h"
+
+struct blgy_prxy_dev_enable_config {
+    const char *dump_dir;
+};
 
 struct blgy_prxy_dev_config {
     const char *target_path;
@@ -10,6 +17,7 @@ struct blgy_prxy_dev_config {
 
 struct blgy_prxy_dev_state {
     struct file *target;
+    bool enabled;
     atomic_t bio_id_counter;
 };
 
@@ -17,6 +25,8 @@ struct blgy_prxy_dev {
     struct block_device *bdev;
     struct gendisk *gd;
     struct blgy_prxy_dev_state state;
+    struct blgy_prxy_dump *dump;
+    struct kobject kobj;
     struct list_head list_node;
 };
 
@@ -31,5 +41,8 @@ void blgy_prxy_devs_destroy(void);
 
 int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg);
 void blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev);
+int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
+                         struct blgy_prxy_dev_enable_config config);
+void blgy_prxy_dev_disable(struct blgy_prxy_dev *dev);
 
 #endif

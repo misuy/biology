@@ -9,32 +9,42 @@
 
 static struct kobject ctl_kobject;
 
-
 struct blgy_prxy_ctl_sysfs_entry {
     struct attribute attr;
     ssize_t (*show) (char *);
     ssize_t (*store) (const char *, size_t);
 };
 
+static ssize_t _ctl_create(const char *buf, ssize_t cnt)
+{
+    int ret = 0;
+    struct blgy_prxy_dev_config config;
+
+    if (cnt <= 0)
+        return -EINVAL;
+
+    config.target_path = buf;
+    if ((ret = blgy_prxy_dev_create(config)) != 0) {
+        BLGY_PRXY_ERR("failed to create biology proxy device, err: %i", ret);
+        return ret;
+    }
+
+    return cnt;
+}
+
 static ssize_t ctl_sysfs_entry_ctl_store(const char *buf, size_t cnt)
 {
     int ret = 0;
-    struct blgy_prxy_dev_config config = { 0 };
-    size_t ptr = 0;
-    while ((ptr < cnt) && buf[ptr] != ' ') {
-        ptr++;
-    }
+    int offset = first_word_size(buf, cnt);
 
-    if (ptr == cnt)
+    if (offset < 0)
         return -EINVAL;
 
-    config.target_path = buf + ptr + 1;
-
-    if (strncmp("trace", buf, ptr) == 0) {
-        if ((ret = blgy_prxy_dev_create(config))) {
-            BLGY_PRXY_ERR("failed to create biology proxy device, err: %i", ret);
+    if (strncmp("create", buf, offset) == 0) {
+        ret = _ctl_create(buf + offset + 2, cnt - offset - 2);
+        if (ret < 0)
             return ret;
-        }
+
         return cnt;
     }
 
@@ -89,7 +99,7 @@ int blgy_prxy_ctl_init(void)
     int ret;
     if ((ret = kobject_init_and_add(&ctl_kobject, &ktype,
                                     &(((struct module *)(THIS_MODULE))->mkobj).kobj,
-                                    "ctl")))
+                                    "module")))
     {
         BLGY_PRXY_ERR("failed to init sysfs ctl kobject, err: %i", ret);
         return ret;

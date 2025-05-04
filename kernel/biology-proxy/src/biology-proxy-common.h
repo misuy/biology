@@ -23,4 +23,17 @@
 
 #define BLGY_PRXY_DEV_DIR BLGY_PRXY_MOD_NAME_SHORT
 
+static inline ssize_t first_word_size(const char *buf, size_t cnt)
+{
+    size_t ptr = 0;
+    while ((ptr < cnt) && buf[ptr] != ' ') {
+        ptr++;
+    }
+
+    if (ptr == cnt)
+        return ptr;
+
+    return ptr - 1;
+}
+
 #endif

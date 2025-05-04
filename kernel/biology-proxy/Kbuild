@@ -4,3 +4,5 @@ biology-proxy-y := src/biology-proxy-main.o \
 	src/biology-proxy-dev.o \
 	src/biology-proxy-bio.o \
 	src/biology-proxy-ctl.o \
+	src/biology-proxy-dump.o \
+	src/biology-proxy-dev-ctl.o \

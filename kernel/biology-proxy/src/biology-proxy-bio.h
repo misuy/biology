@@ -10,6 +10,7 @@ struct blgy_prxy_bio_info {
     ktime_t start_ts;
     ktime_t end_ts;
     sector_t sector;
+    int cpu;
     unsigned int size;
 };
 
@@ -17,6 +18,7 @@ struct blgy_prxy_bio {
     struct bio *bio;
     struct blgy_prxy_bio_info info;
     struct blgy_prxy_dev *dev;
+    struct work_struct dump_work;
 };
 
 struct blgy_prxy_bio_serial_schema_field;
@@ -39,7 +41,7 @@ struct blgy_prxy_bio_serial_schema_field {
     return sizeof(bio->_field);
 
 #define blgy_prxy_bio_serial_schema_field_ptr_fn_default(_field) \
-    return &bio->_field;
+    return &(bio->_field);
 
 #define define_blgy_prxy_bio_serial_schema_field(_name, _field,                 \
                                                  _size_fn, _ptr_fn)             \
@@ -74,6 +76,6 @@ struct blgy_prxy_bio_serial_schema_field {
 void blgy_prxy_process_bio(struct blgy_prxy_dev *dev,
                                    struct bio *bio);
 
-int blgy_prxy_bio_serialize(struct blgy_prxy_bio *bio, void **buf_p);
+ssize_t blgy_prxy_bio_serialize(struct blgy_prxy_bio *bio, char **buf_p);
 
 #endif
