@@ -5,6 +5,7 @@
 #include "biology-proxy-bio.h"
 #include "biology-proxy-common.h"
 #include "biology-proxy-dev-ctl.h"
+#include "biology-proxy-dump.h"
 
 struct blgy_prxy_devs {
     struct list_head list;

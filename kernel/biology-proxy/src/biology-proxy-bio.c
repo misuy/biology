@@ -6,6 +6,7 @@
 
 #include "biology-proxy-common.h"
 #include "biology-proxy-dump.h"
+#include "biology-proxy-dev.h"
 
 static inline void
 blgy_prxy_bio_info_init(struct blgy_prxy_bio_info *info, uint32_t id)
@@ -110,77 +111,4 @@ err:
     blgy_prxy_bio_destroy(bp_bio);
     bio->bi_status = ret;
     bio_endio(bio);
-}
-
-define_blgy_prxy_bio_serial_schema_field(
-    info_id, info.id,
-    blgy_prxy_bio_serial_schema_field_size_fn_default,
-    blgy_prxy_bio_serial_schema_field_ptr_fn_default
-);
-
-define_blgy_prxy_bio_serial_schema_field(
-    info_start_ts, info.start_ts,
-    blgy_prxy_bio_serial_schema_field_size_fn_default,
-    blgy_prxy_bio_serial_schema_field_ptr_fn_default
-);
-
-define_blgy_prxy_bio_serial_schema_field(
-    info_end_ts, info.end_ts,
-    blgy_prxy_bio_serial_schema_field_size_fn_default,
-    blgy_prxy_bio_serial_schema_field_ptr_fn_default
-);
-
-define_blgy_prxy_bio_serial_schema_field(
-    info_sector, info.sector,
-    blgy_prxy_bio_serial_schema_field_size_fn_default,
-    blgy_prxy_bio_serial_schema_field_ptr_fn_default
-);
-
-define_blgy_prxy_bio_serial_schema_field(
-    info_size, info.size,
-    blgy_prxy_bio_serial_schema_field_size_fn_default,
-    blgy_prxy_bio_serial_schema_field_ptr_fn_default
-);
-
-static struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema[] = {
-    declare_blgy_prxy_bio_serial_schema_field(info_id),
-    declare_blgy_prxy_bio_serial_schema_field(info_start_ts),
-    declare_blgy_prxy_bio_serial_schema_field(info_end_ts),
-    declare_blgy_prxy_bio_serial_schema_field(info_sector),
-    declare_blgy_prxy_bio_serial_schema_field(info_size),
-    NULL
-};
-
-static size_t blgy_prxy_bio_serial_schema_size(struct blgy_prxy_bio *bio)
-{
-    size_t size = 0, offset = 0;
-    while (blgy_prxy_bio_serial_schema[offset] != NULL) {
-        size += blgy_prxy_bio_serial_schema[offset]->size(bio);
-        offset++;
-    }
-    return size;
-}
-
-ssize_t blgy_prxy_bio_serialize(struct blgy_prxy_bio *bio, char **buf_p)
-{
-    size_t offset = 0;
-    char *buf = kmalloc(blgy_prxy_bio_serial_schema_size(bio), GFP_KERNEL);;
-    char *buf_ptr = buf;
-
-    if (buf == NULL) {
-        BLGY_PRXY_ERR("failed to allocate memory for serialized bio");
-        return -ENOMEM;
-    }
-
-    while (blgy_prxy_bio_serial_schema[offset] != NULL) {
-        blgy_prxy_bio_serial_schema[offset]->serialize(
-            blgy_prxy_bio_serial_schema[offset], bio, buf_ptr
-        );
-        buf_ptr += blgy_prxy_bio_serial_schema[offset]->size(bio);
-        offset++;
-    }
-
-    *buf_p = buf;
-
-    return buf_ptr - buf;
 }

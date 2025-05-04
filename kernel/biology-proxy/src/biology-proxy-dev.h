@@ -5,8 +5,6 @@
 #include <linux/types.h>
 #include <linux/kobject.h>
 
-#include "biology-proxy-dump.h"
-
 struct blgy_prxy_dev_enable_config {
     const char *dump_dir;
 };

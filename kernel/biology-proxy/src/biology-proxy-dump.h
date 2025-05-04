@@ -6,6 +6,7 @@
 #include <linux/mutex.h>
 
 struct blgy_prxy_bio;
+struct blgy_prxy_bio_serial_schema_field;
 
 struct blgy_prxy_dump_file {
     struct file *file;
@@ -16,6 +17,7 @@ struct blgy_prxy_dump_file {
 struct blgy_prxy_dump {
     int cpus_num;
     struct blgy_prxy_dump_file *files;
+    struct blgy_prxy_bio_serial_schema_field **schema;
     struct workqueue_struct *wq;
 };
 
