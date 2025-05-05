@@ -1,10 +1,5 @@
 #include "biology-proxy-bio-serial.h"
 
-#include <linux/memory.h>
-
-#include "biology-proxy-common.h"
-#include "biology-proxy-bio.h"
-
 define_blgy_prxy_bio_serial_schema_field(
     0, id, id,
     blgy_prxy_bio_serial_schema_field_size_fn_default,
@@ -83,9 +78,7 @@ ssize_t blgy_prxy_bio_serial_schema_serialize(
 {
     size_t offset = 0;
     size_t size = blgy_prxy_bio_serial_schema_size(schema);
-    char *buf =
-        kmalloc(size + sizeof(uint32_t),
-                GFP_KERNEL);
+    char *buf = MALLOC_OVERRIDE(size + sizeof(uint32_t));
     char *bufp = buf;
 
     if (!buf)
@@ -111,30 +104,31 @@ ssize_t blgy_prxy_bio_serial_schema_deserialize(
 )
 {
     char *bufp = buf;
-    uint32_t size, i, id;
+    uint32_t size, i, id, cnt;
     struct blgy_prxy_bio_serial_schema_field **schema;
 
     memcpy(&size, bufp, sizeof(uint32_t));
     bufp += sizeof(uint32_t);
 
+    cnt = size / sizeof(uint32_t);
     schema =
-        kmalloc(sizeof(struct blgy_prxy_bio_serial_schema_field *) * (size + 1),
-                GFP_KERNEL);
+        MALLOC_OVERRIDE(sizeof(struct blgy_prxy_bio_serial_schema_field *)
+                        * (cnt + 1));
 
     if (!schema)
         return -ENOMEM;
 
-    for (i = 0; i < size; i++) {
+    for (i = 0; i < cnt; i++) {
         memcpy(&id, bufp, sizeof(uint32_t));
         bufp += sizeof(uint32_t);
         schema[i] = _get_serial_schema_field_by_id(id);
         if (schema[i] == NULL) {
-            kfree(schema);
-            return EINVAL;
+            FREE_OVERRIDE(schema);
+            return -EINVAL;
         }
     }
 
-    schema[size] = NULL;
+    schema[cnt] = NULL;
     *schema_p = schema;
 
     return bufp - buf;
@@ -159,11 +153,11 @@ ssize_t blgy_prxy_bio_serialize(
 )
 {
     size_t offset = 0;
-    char *buf = kmalloc(blgy_prxy_bio_serial_size(info, schema), GFP_KERNEL);;
+    char *buf = MALLOC_OVERRIDE(blgy_prxy_bio_serial_size(info, schema));
     char *buf_ptr = buf;
 
     if (buf == NULL) {
-        BLGY_PRXY_ERR("failed to allocate memory for serialized bio");
+        LOG_ERR_OVERRIDE("failed to allocate memory for serialized bio");
         return -ENOMEM;
     }
 
@@ -187,7 +181,7 @@ ssize_t blgy_prxy_bio_deserialize(
     char *bufp = buf;
 
     while (schema[offset] != NULL) {
-        schema[offset]->deserialize(schema[offset], info, buf);
+        schema[offset]->deserialize(schema[offset], info, bufp);
         bufp += schema[offset]->size(info);
         offset++;
     }

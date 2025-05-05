@@ -1,7 +1,44 @@
 #ifndef BLGY_PRXY_BIO_SERIAL_H_
 #define BLGY_PRXY_BIO_SERIAL_H_
 
+// #define C_PRXY
+// #define C_TO_JSON
+
+#ifdef C_PRXY
 #include <linux/types.h>
+#include <linux/memory.h>
+
+#include "biology-proxy-common.h"
+#include "biology-proxy-bio.h"
+
+#define LOG_ERR_OVERRIDE(fmt, args...) \
+    BLGY_PRXY_ERR(fmt, ## args)
+
+#define MALLOC_OVERRIDE(size) \
+    kmalloc(size, GFP_KERNEL)
+
+#define FREE_OVERRIDE(ptr) \
+    kfree(ptr)
+#endif
+
+#ifdef C_TO_JSON
+#include <inttypes.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <memory.h>
+
+#include "bio-info.h"
+
+#define LOG_ERR_OVERRIDE(fmt, args...) \
+    printf("err: " fmt "\n", ## args)
+
+#define MALLOC_OVERRIDE(size) \
+    malloc(size)
+
+#define FREE_OVERRIDE(ptr) \
+    free(ptr)
+#endif
 
 struct blgy_prxy_bio_info;
 struct blgy_prxy_bio_serial_schema_field;
