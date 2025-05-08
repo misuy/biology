@@ -14,10 +14,15 @@ struct blgy_prxy_dump_file {
     loff_t offset;
 };
 
+#define BLGY_PRXY_BUF_SIZE 4096
+
 struct blgy_prxy_dump {
     int cpus_num;
     struct blgy_prxy_dump_file *files;
     struct blgy_prxy_bio_serial_schema_field **schema;
+    char *buf;
+    size_t size;
+    size_t offset;
     struct workqueue_struct *wq;
 };
 

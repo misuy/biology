@@ -1,0 +1,9 @@
+obj-m := biology-gen.o
+
+biology-gen-y := src/biology-gen-main.o \
+	src/biology-gen-worker.o \
+    src/biology-gen-worker-ctl.o \
+	src/biology-gen-bio.o \
+	src/biology-gen-ctl.o \
+	src/biology-gen-parser.o \
+    src/biology-proxy-bio-serial.o \

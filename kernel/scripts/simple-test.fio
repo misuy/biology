@@ -1,0 +1,11 @@
+[global]
+readwrite=readwrite
+blocksize_range=512-512k
+direct=0
+verify=meta
+verify_pattern=0xfafbfcfdfefafbfc
+verify_dump=1
+random_generator=lfsr
+
+[test]
+filename=/dev/bpsda

@@ -40,12 +40,21 @@ define_blgy_prxy_bio_serial_schema_field(
     blgy_prxy_bio_serial_schema_field_deserialize_fn_default
 );
 
+define_blgy_prxy_bio_serial_schema_field(
+    5, op, op,
+    blgy_prxy_bio_serial_schema_field_size_fn_default,
+    blgy_prxy_bio_serial_schema_field_ptr_fn_default,
+    blgy_prxy_bio_serial_schema_field_serialize_fn_default,
+    blgy_prxy_bio_serial_schema_field_deserialize_fn_default
+);
+
 struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_default[] = {
     declare_blgy_prxy_bio_serial_schema_field(id),
     declare_blgy_prxy_bio_serial_schema_field(start_ts),
     declare_blgy_prxy_bio_serial_schema_field(end_ts),
     declare_blgy_prxy_bio_serial_schema_field(sector),
     declare_blgy_prxy_bio_serial_schema_field(size),
+    declare_blgy_prxy_bio_serial_schema_field(op),
     NULL
 };
 
@@ -62,14 +71,14 @@ _get_serial_schema_field_by_id(uint32_t id)
     return NULL;
 }
 
-static size_t blgy_prxy_bio_serial_schema_size(
+static uint32_t blgy_prxy_bio_serial_schema_size(
     struct blgy_prxy_bio_serial_schema_field **schema
 )
 {
     size_t offset = 0;
     while (schema[offset] != NULL)
         offset++;
-    return sizeof(uint32_t) * offset;
+    return offset;
 }
 
 ssize_t blgy_prxy_bio_serial_schema_serialize(
@@ -77,8 +86,8 @@ ssize_t blgy_prxy_bio_serial_schema_serialize(
 )
 {
     size_t offset = 0;
-    size_t size = blgy_prxy_bio_serial_schema_size(schema);
-    char *buf = MALLOC_OVERRIDE(size + sizeof(uint32_t));
+    uint32_t size = blgy_prxy_bio_serial_schema_size(schema);
+    char *buf = MALLOC_OVERRIDE((size + 1) * sizeof(uint32_t));
     char *bufp = buf;
 
     if (!buf)
@@ -104,21 +113,20 @@ ssize_t blgy_prxy_bio_serial_schema_deserialize(
 )
 {
     char *bufp = buf;
-    uint32_t size, i, id, cnt;
+    uint32_t size, i, id;
     struct blgy_prxy_bio_serial_schema_field **schema;
 
     memcpy(&size, bufp, sizeof(uint32_t));
     bufp += sizeof(uint32_t);
 
-    cnt = size / sizeof(uint32_t);
     schema =
         MALLOC_OVERRIDE(sizeof(struct blgy_prxy_bio_serial_schema_field *)
-                        * (cnt + 1));
+                        * (size + 1));
 
     if (!schema)
         return -ENOMEM;
 
-    for (i = 0; i < cnt; i++) {
+    for (i = 0; i < size; i++) {
         memcpy(&id, bufp, sizeof(uint32_t));
         bufp += sizeof(uint32_t);
         schema[i] = _get_serial_schema_field_by_id(id);
@@ -128,7 +136,7 @@ ssize_t blgy_prxy_bio_serial_schema_deserialize(
         }
     }
 
-    schema[cnt] = NULL;
+    schema[size] = NULL;
     *schema_p = schema;
 
     return bufp - buf;
@@ -152,14 +160,17 @@ ssize_t blgy_prxy_bio_serialize(
     struct blgy_prxy_bio_serial_schema_field **schema
 )
 {
-    size_t offset = 0;
-    char *buf = MALLOC_OVERRIDE(blgy_prxy_bio_serial_size(info, schema));
+    size_t offset = 0, size = blgy_prxy_bio_serial_size(info, schema);
+    char *buf = MALLOC_OVERRIDE(size + sizeof(size_t));
     char *buf_ptr = buf;
 
     if (buf == NULL) {
         LOG_ERR_OVERRIDE("failed to allocate memory for serialized bio");
         return -ENOMEM;
     }
+
+    memcpy(buf_ptr, &size, sizeof(size_t));
+    buf_ptr += sizeof(size_t);
 
     while (schema[offset] != NULL) {
         schema[offset]->serialize(schema[offset], info, buf_ptr);
@@ -172,13 +183,22 @@ ssize_t blgy_prxy_bio_serialize(
     return buf_ptr - buf;
 }
 
-ssize_t blgy_prxy_bio_deserialize(
+size_t blgy_prxy_bio_serialized_size(char *buf)
+{
+    size_t size;
+    memcpy(&size, buf, sizeof(size_t));
+    return size + sizeof(size_t);
+}
+
+size_t blgy_prxy_bio_deserialize(
     struct blgy_prxy_bio_info *info, char *buf,
     struct blgy_prxy_bio_serial_schema_field **schema
 )
 {
     size_t offset = 0;
     char *bufp = buf;
+
+    bufp += sizeof(size_t);
 
     while (schema[offset] != NULL) {
         schema[offset]->deserialize(schema[offset], info, bufp);

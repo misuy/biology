@@ -13,25 +13,21 @@ struct blgy_prxy_dev_config {
     const char *target_path;
 };
 
-struct blgy_prxy_dev_state {
-    struct file *target;
-    bool enabled;
-    atomic_t bio_id_counter;
-};
-
 struct blgy_prxy_dev {
     struct block_device *bdev;
     struct gendisk *gd;
-    struct blgy_prxy_dev_state state;
+    struct file *target;
+    bool enabled;
     struct blgy_prxy_dump *dump;
+    atomic_t bio_id_counter;
+    ktime_t start_ts;
     struct kobject kobj;
-    struct list_head list_node;
 };
 
 static inline uint32_t
 blgy_prxy_dev_next_bio_id(struct blgy_prxy_dev *dev)
 {
-    return atomic_inc_return(&dev->state.bio_id_counter);
+    return atomic_inc_return(&dev->bio_id_counter);
 }
 
 int blgy_prxy_devs_init(void);

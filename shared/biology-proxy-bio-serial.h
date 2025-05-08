@@ -1,7 +1,8 @@
 #ifndef BLGY_PRXY_BIO_SERIAL_H_
 #define BLGY_PRXY_BIO_SERIAL_H_
 
-// #define C_PRXY
+#define C_PRXY
+// #define C_GEN
 // #define C_TO_JSON
 
 #ifdef C_PRXY
@@ -13,6 +14,23 @@
 
 #define LOG_ERR_OVERRIDE(fmt, args...) \
     BLGY_PRXY_ERR(fmt, ## args)
+
+#define MALLOC_OVERRIDE(size) \
+    kmalloc(size, GFP_KERNEL)
+
+#define FREE_OVERRIDE(ptr) \
+    kfree(ptr)
+#endif
+
+#ifdef C_GEN
+#include <linux/types.h>
+#include <linux/memory.h>
+
+#include "biology-gen-common.h"
+#include "biology-gen-bio.h"
+
+#define LOG_ERR_OVERRIDE(fmt, args...) \
+    BLGY_GEN_ERR(fmt, ## args)
 
 #define MALLOC_OVERRIDE(size) \
     kmalloc(size, GFP_KERNEL)
@@ -136,7 +154,9 @@ ssize_t blgy_prxy_bio_serialize(
     struct blgy_prxy_bio_serial_schema_field **schema
 );
 
-ssize_t blgy_prxy_bio_deserialize(
+size_t blgy_prxy_bio_serialized_size(char *buf);
+
+size_t blgy_prxy_bio_deserialize(
     struct blgy_prxy_bio_info *bio, char *buf,
     struct blgy_prxy_bio_serial_schema_field **schema
 );
@@ -146,6 +166,7 @@ extern_blgy_prxy_bio_serial_schema_field(start_ts);
 extern_blgy_prxy_bio_serial_schema_field(end_ts);
 extern_blgy_prxy_bio_serial_schema_field(sector);
 extern_blgy_prxy_bio_serial_schema_field(size);
+extern_blgy_prxy_bio_serial_schema_field(op);
 
 extern struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_default[];
 
