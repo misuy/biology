@@ -36,6 +36,7 @@ static void _dev_ctl_disable(struct blgy_prxy_dev *dev)
 
 static void _dev_ctl_destroy(struct blgy_prxy_dev *dev)
 {
+    blgy_prxy_dev_disable(dev);
     blgy_prxy_dev_destroy(dev);
 }
 

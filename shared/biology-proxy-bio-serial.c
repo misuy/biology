@@ -82,12 +82,11 @@ static uint32_t blgy_prxy_bio_serial_schema_size(
 }
 
 ssize_t blgy_prxy_bio_serial_schema_serialize(
-    struct blgy_prxy_bio_serial_schema_field **schema, char **buf_p
+    struct blgy_prxy_bio_serial_schema_field **schema, char *buf
 )
 {
     size_t offset = 0;
     uint32_t size = blgy_prxy_bio_serial_schema_size(schema);
-    char *buf = MALLOC_OVERRIDE((size + 1) * sizeof(uint32_t));
     char *bufp = buf;
 
     if (!buf)
@@ -101,8 +100,6 @@ ssize_t blgy_prxy_bio_serial_schema_serialize(
         bufp += sizeof(uint32_t);
         offset++;
     }
-
-    *buf_p = buf;
 
     return bufp - buf;
 }
@@ -142,7 +139,7 @@ ssize_t blgy_prxy_bio_serial_schema_deserialize(
     return bufp - buf;
 }
 
-static size_t blgy_prxy_bio_serial_size(
+size_t blgy_prxy_bio_serial_size(
     struct blgy_prxy_bio_info *info,
     struct blgy_prxy_bio_serial_schema_field **schema
 )
@@ -156,31 +153,23 @@ static size_t blgy_prxy_bio_serial_size(
 }
 
 ssize_t blgy_prxy_bio_serialize(
-    struct blgy_prxy_bio_info *info, char **buf_p,
+    struct blgy_prxy_bio_info *info, char *buf,
     struct blgy_prxy_bio_serial_schema_field **schema
 )
 {
     size_t offset = 0, size = blgy_prxy_bio_serial_size(info, schema);
-    char *buf = MALLOC_OVERRIDE(size + sizeof(size_t));
-    char *buf_ptr = buf;
+    char *bufp = buf;
 
-    if (buf == NULL) {
-        LOG_ERR_OVERRIDE("failed to allocate memory for serialized bio");
-        return -ENOMEM;
-    }
-
-    memcpy(buf_ptr, &size, sizeof(size_t));
-    buf_ptr += sizeof(size_t);
+    memcpy(bufp, &size, sizeof(size_t));
+    bufp += sizeof(size_t);
 
     while (schema[offset] != NULL) {
-        schema[offset]->serialize(schema[offset], info, buf_ptr);
-        buf_ptr += schema[offset]->size(info);
+        schema[offset]->serialize(schema[offset], info, bufp);
+        bufp += schema[offset]->size(info);
         offset++;
     }
 
-    *buf_p = buf;
-
-    return buf_ptr - buf;
+    return bufp - buf;
 }
 
 size_t blgy_prxy_bio_serialized_size(char *buf)

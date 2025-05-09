@@ -17,23 +17,9 @@ static void blgy_prxy_dump_file_destroy(struct blgy_prxy_dump_file *file)
     file->file = NULL;
 }
 
-void blgy_prxy_dump_destroy(struct blgy_prxy_dump *dump)
-{
-    int i;
-    for (i = 0; i < dump->cpus_num; i++)
-        blgy_prxy_dump_file_destroy(&dump->files[i]);
-
-    if (dump->wq) {
-        flush_workqueue(dump->wq);
-        destroy_workqueue(dump->wq);
-        dump->wq = NULL;
-    }
-}
-
 static int blgy_prxy_dump_file_init(struct blgy_prxy_dump_file *file, char *path)
 {
     BLGY_PRXY_DBG("opening dump file %s", path);
-    mutex_init(&file->lock);
     file->offset = 0;
     file->file = filp_open(path, O_RDWR | O_CREAT | O_DSYNC, 0);
     if (!file->file) {
@@ -50,7 +36,7 @@ static int blgy_prxy_dump_file_write(struct blgy_prxy_dump_file *file,
     struct bio_vec bvec;
     ssize_t written;
 
-    BLGY_PRXY_DBG("dump file write %lu", size);
+    BLGY_PRXY_INFO("dump file write %lu", size);
 
     bvec.bv_page = virt_to_page(buf);
     bvec.bv_offset = offset_in_page(buf);
@@ -58,41 +44,89 @@ static int blgy_prxy_dump_file_write(struct blgy_prxy_dump_file *file,
 
     iov_iter_bvec(&iter, WRITE, &bvec, 1, size);
 
-    mutex_lock(&file->lock);
-
     written = vfs_iter_write(file->file, &iter, &file->offset, 0);
 
     if (size != written) {
         BLGY_PRXY_ERR("failed to write dump file (IO error)");
-        mutex_unlock(&file->lock);
         return -EIO;
     }
 
     vfs_fsync_range(file->file, file->offset - size, file->offset, 0);
-
-    mutex_unlock(&file->lock);
 
     return 0;
 }
 
 static int blgy_prxy_dump_schema(struct blgy_prxy_dump *dump)
 {
-    ssize_t size, ret;
-    char *buf;
-    int cpu;
+    ssize_t size;
 
-    if ((size = blgy_prxy_bio_serial_schema_serialize(dump->schema, &buf)) < 0)
+    if ((size =
+         blgy_prxy_bio_serial_schema_serialize(dump->schema,
+                                               blgy_prxy_dump_buf_pos(dump)))
+        < 0)
         return size;
 
-    for (cpu = 0; cpu < dump->cpus_num; cpu++) {
-        if ((ret = blgy_prxy_dump_file_write(&dump->files[cpu], buf, size)) < 0) {
-            goto end;
-        }
-    }
+    dump->offset += size;
 
-end:
-    kfree(buf);
+    return 0;
+}
+
+static int blgy_prxy_dump_buf_init(struct blgy_prxy_dump *dump)
+{
+    dump->buf = kmalloc(BLGY_PRXY_DUMP_INITIAL_BUF_SIZE, GFP_KERNEL);
+    if (!dump->buf)
+        return -ENOMEM;
+
+    dump->size = BLGY_PRXY_DUMP_INITIAL_BUF_SIZE;
+    dump->offset = 0;
+
+    return 0;
+}
+
+static int blgy_prxy_dump_buf_drain(struct blgy_prxy_dump *dump)
+{
+    int ret;
+
+    if (dump->offset == 0)
+        return 0;
+
+    ret = blgy_prxy_dump_file_write(&dump->file, dump->buf, dump->offset);
+    dump->offset = 0;
     return ret;
+}
+
+static void blgy_prxy_dump_buf_destroy(struct blgy_prxy_dump *dump)
+{
+    blgy_prxy_dump_buf_drain(dump);
+    kfree(dump->buf);
+    dump->buf = NULL;
+    dump->size = 0;
+    dump->offset = 0;
+}
+
+static int blgy_prxy_dump_buf_resize(struct blgy_prxy_dump *dump, size_t size)
+{
+    dump->buf = krealloc(dump->buf, size, GFP_KERNEL);
+    if (!dump->buf)
+        return -ENOMEM;
+    dump->size = size;
+    return 0;
+}
+
+static int blgy_prxy_dump_buf_prepare(struct blgy_prxy_dump *dump, size_t size)
+{
+    int ret;
+
+    if (blgy_prxy_dump_buf_avail(dump) >= size)
+        return 0;
+
+    if ((ret = blgy_prxy_dump_buf_drain(dump)))
+        return ret;
+
+    if (blgy_prxy_dump_buf_avail(dump) >= size)
+        return 0;
+
+    return blgy_prxy_dump_buf_resize(dump, size);
 }
 
 static void _dump_build_file_path(char *path, const char *dir_path, int cpun)
@@ -100,27 +134,30 @@ static void _dump_build_file_path(char *path, const char *dir_path, int cpun)
     sprintf(path, "%s/dump%d", dir_path, cpun);
 }
 
-int blgy_prxy_dump_init(struct blgy_prxy_dump *dump, const char *dir_path)
+static void blgy_prxy_dump_destroy(struct blgy_prxy_dump *dump)
 {
-    int i = 0, ret = 0;
+    blgy_prxy_dump_buf_destroy(dump);
+    blgy_prxy_dump_file_destroy(&dump->file);
+}
+
+static int
+blgy_prxy_dump_init(struct blgy_prxy_dump *dump, const char *dir_path, int cpu)
+{
+    int ret = 0;
     char *file_path = kzalloc(PATH_MAX, GFP_KERNEL);
-    dump->cpus_num = num_online_cpus();
+    if (!file_path)
+        return -ENOMEM;
+
+    dump->cpu = cpu;
     dump->schema = blgy_prxy_bio_serial_schema_default;
-    dump->files =
-        kzalloc(sizeof(struct blgy_prxy_dump_file) * dump->cpus_num, GFP_KERNEL);
+    mutex_init(&dump->lock);
 
-    for (i = 0; i < dump->cpus_num; i++)
-        dump->files[i].file = NULL;
+    _dump_build_file_path(file_path, dir_path, dump->cpu);
+    if ((ret = blgy_prxy_dump_file_init(&dump->file, file_path)))
+        goto out;
 
-    dump->wq = NULL;
-
-    for (i = 0; i < dump->cpus_num; i++) {
-        _dump_build_file_path(file_path, dir_path, i);
-        if ((ret = blgy_prxy_dump_file_init(&dump->files[i], file_path)) != 0)
-            goto out;
-    }
-
-    dump->wq = alloc_workqueue("dump_%s", 0, 0, dir_path);
+    if ((ret = blgy_prxy_dump_buf_init(dump)))
+        goto out;
 
     ret = blgy_prxy_dump_schema(dump);
 
@@ -132,22 +169,70 @@ out:
     return ret;
 }
 
+int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps, const char *dir_path)
+{
+    int cpu, ret;
+
+    dumps->cpus_num = num_online_cpus();
+    dumps->dumps =
+        kzalloc(sizeof(struct blgy_prxy_dump) * dumps->cpus_num, GFP_KERNEL);
+
+    if (!dumps->dumps)
+        return -ENOMEM;
+
+    for (cpu = 0; cpu < dumps->cpus_num; cpu++) {
+        if ((ret = blgy_prxy_dump_init(blgy_prxy_dump_get_by_cpu(dumps, cpu),
+                                       dir_path, cpu))) {
+            kfree(dumps->dumps);
+            return ret;
+        }
+    }
+
+    dumps->wq = alloc_workqueue("dump_%s", 0, 0, dir_path);
+
+    return 0;
+}
+
+void blgy_prxy_dumps_destroy(struct blgy_prxy_dumps *dumps)
+{
+    int cpu;
+
+    flush_workqueue(dumps->wq);
+    destroy_workqueue(dumps->wq);
+
+    for (cpu = 0; cpu < dumps->cpus_num; cpu++) {
+        blgy_prxy_dump_destroy(blgy_prxy_dump_get_by_cpu(dumps, cpu));
+    }
+
+    kfree(dumps->dumps);
+}
+
 int blgy_prxy_dump(struct blgy_prxy_dump *dump, struct blgy_prxy_bio *bio)
 {
     int ret = 0;
     ssize_t size;
-    char *buf;
-    int cpu;
 
-    BLGY_PRXY_DBG("dumping bio %u", bio->info.id);
+    mutex_lock(&dump->lock);
 
-    if ((size = blgy_prxy_bio_serialize(&bio->info, &buf, dump->schema)) < 0)
+    size = blgy_prxy_bio_serial_size(&bio->info, dump->schema) + sizeof(size_t);
+
+    if ((ret = blgy_prxy_dump_buf_prepare(dump, size))) {
+        BLGY_PRXY_ERR("failed to prepare dump buf");
+        mutex_unlock(&dump->lock);
+        return ret;
+    }
+
+    if ((size = blgy_prxy_bio_serialize(&bio->info,
+                                        blgy_prxy_dump_buf_pos(dump),
+                                        dump->schema)) < 0) {
+        BLGY_PRXY_ERR("failed to serialize bio");
+        mutex_unlock(&dump->lock);
         return size;
+    }
 
-    cpu = bio->info.cpu;
+    dump->offset += size;
 
-    ret = blgy_prxy_dump_file_write(&dump->files[cpu], buf, size);
+    mutex_unlock(&dump->lock);
 
-    kfree(buf);
-    return ret;
+    return 0;
 }

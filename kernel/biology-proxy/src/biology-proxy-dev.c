@@ -31,16 +31,16 @@ int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
 {
     int ret;
 
-    if (dev->dump)
+    if (dev->dumps)
         return -EALREADY;
 
-    dev->dump = kzalloc(sizeof(struct blgy_prxy_dump), GFP_KERNEL);
-    if (!dev->dump)
+    dev->dumps = kzalloc(sizeof(struct blgy_prxy_dump), GFP_KERNEL);
+    if (!dev->dumps)
         return -ENOMEM;
 
-    if ((ret = blgy_prxy_dump_init(dev->dump, config.dump_dir))) {
-        kfree(dev->dump);
-        dev->dump = NULL;
+    if ((ret = blgy_prxy_dumps_init(dev->dumps, config.dump_dir))) {
+        kfree(dev->dumps);
+        dev->dumps = NULL;
         return ret;
     }
 
@@ -57,12 +57,12 @@ void blgy_prxy_dev_disable(struct blgy_prxy_dev *dev)
 {
     dev->enabled = false;
 
-    if (!dev->dump)
+    if (!dev->dumps)
         return;
 
-    blgy_prxy_dump_destroy(dev->dump);
-    kfree(dev->dump);
-    dev->dump = NULL;
+    blgy_prxy_dumps_destroy(dev->dumps);
+    kfree(dev->dumps);
+    dev->dumps = NULL;
 
     BLGY_PRXY_INFO("proxy device %s disabled", dev->gd->disk_name);
 }
@@ -120,7 +120,7 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
     dev->bdev = dev->gd->part0;
 
     dev->enabled = false;
-    dev->dump = NULL;
+    dev->dumps = NULL;
 
     ret = blgy_prxy_dev_ctl_init(dev);
     if (ret) {

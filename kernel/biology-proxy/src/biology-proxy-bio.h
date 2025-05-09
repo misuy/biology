@@ -21,7 +21,8 @@ struct blgy_prxy_bio {
     struct bio *bio;
     struct blgy_prxy_bio_info info;
     struct blgy_prxy_dev *dev;
-    struct work_struct dump_work;
+    struct blgy_prxy_dump *dump;
+    struct work_struct work;
 };
 
 void blgy_prxy_process_bio(struct blgy_prxy_dev *dev,

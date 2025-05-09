@@ -18,7 +18,7 @@ struct blgy_prxy_dev {
     struct gendisk *gd;
     struct file *target;
     bool enabled;
-    struct blgy_prxy_dump *dump;
+    struct blgy_prxy_dumps *dumps;
     atomic_t bio_id_counter;
     ktime_t start_ts;
     struct kobject kobj;

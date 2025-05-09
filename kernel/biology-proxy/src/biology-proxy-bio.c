@@ -42,21 +42,29 @@ static void blgy_prxy_bio_destroy(struct blgy_prxy_bio *bio)
     kfree(bio);
 }
 
-static void blgy_prxy_dump_bio_work(struct work_struct *work)
+static void blgy_prxy_bio_dump_work(struct work_struct *work)
 {
-    struct blgy_prxy_bio *bp_bio =
-        container_of(work, struct blgy_prxy_bio, dump_work);
+    struct blgy_prxy_bio *bio =
+        container_of(work, struct blgy_prxy_bio, work);
 
-    BLGY_PRXY_DBG("%s: traced bio (id: %u, start_ts: %lli, end_ts: %lli, sector: %lli, size: %u, op: %u);\n",
-                    bp_bio->dev->bdev->bd_disk->disk_name,
-                    bp_bio->info.id, bp_bio->info.start_ts,
-                    bp_bio->info.end_ts, bp_bio->info.sector,
-                    bp_bio->info.size, bp_bio->bio->bi_opf);
+    BLGY_PRXY_DBG("%s: traced bio (id: %u, start_ts: %lli, end_ts: %lli, sector: %lli, size: %u, op: %u, cpu: %d);\n",
+                  bio->dev->bdev->bd_disk->disk_name,
+                  bio->info.id, bio->info.start_ts,
+                  bio->info.end_ts, bio->info.sector,
+                  bio->info.size, bio->info.op, bio->info.cpu);
 
-    blgy_prxy_dump(bp_bio->dev->dump, bp_bio);
+    blgy_prxy_dump(bio->dump, bio);
 
-    bio_endio(bp_bio->bio);
-    blgy_prxy_bio_destroy(bp_bio);
+    bio_endio(bio->bio);
+    blgy_prxy_bio_destroy(bio);
+}
+
+static void blgy_prxy_bio_dump_work_submit(struct blgy_prxy_bio *bio)
+{
+    int cpu = bio->info.cpu;
+    bio->dump = blgy_prxy_dump_get_by_cpu(bio->dev->dumps, cpu);
+    INIT_WORK(&bio->work, blgy_prxy_bio_dump_work);
+    queue_work_on(cpu, bio->dev->dumps->wq, &bio->work);
 }
 
 static void blgy_prxy_bio_end_io(struct bio *clone)
@@ -64,13 +72,12 @@ static void blgy_prxy_bio_end_io(struct bio *clone)
     struct blgy_prxy_bio *bp_bio = clone->bi_private;
     struct bio *bio = bp_bio->bio;
 
-    bp_bio->info.op = clone->bi_opf;
     bp_bio->info.end_ts = ktime_get_boottime();
 
     bio->bi_status = clone->bi_status;
     bio_put(clone);
 
-    queue_work(bp_bio->dev->dump->wq, &bp_bio->dump_work);
+    blgy_prxy_bio_dump_work_submit(bp_bio);
 }
 
 void blgy_prxy_process_bio(struct blgy_prxy_dev *dev, struct bio *bio)
@@ -85,6 +92,12 @@ void blgy_prxy_process_bio(struct blgy_prxy_dev *dev, struct bio *bio)
         goto err;
     }
 
+    bp_bio->info.sector = bio->bi_iter.bi_sector;
+    bp_bio->info.size = bio->bi_iter.bi_size;
+    bp_bio->info.op = bio->bi_opf;
+    bp_bio->info.cpu = smp_processor_id();
+    bp_bio->info.start_ts = ktime_get_boottime() - dev->start_ts;
+
     clone = bio_alloc_clone(file_bdev(dev->target), bio, GFP_NOIO, &fs_bio_set);
     if (!clone) {
         BLGY_PRXY_ERR("failed to allocate memory for bio clone");
@@ -95,14 +108,7 @@ void blgy_prxy_process_bio(struct blgy_prxy_dev *dev, struct bio *bio)
     clone->bi_private = bp_bio;
     clone->bi_end_io = blgy_prxy_bio_end_io;
 
-    bp_bio->info.sector = clone->bi_iter.bi_sector;
-    bp_bio->info.size = bio->bi_iter.bi_size;
     bio_advance(bio, clone->bi_iter.bi_size);
-
-    bp_bio->info.cpu = smp_processor_id();
-    INIT_WORK(&bp_bio->dump_work, blgy_prxy_dump_bio_work);
-
-    bp_bio->info.start_ts = ktime_get_boottime() - dev->start_ts;
 
     submit_bio_noacct(clone);
 

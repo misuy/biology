@@ -1,7 +1,7 @@
 #ifndef BLGY_PRXY_BIO_SERIAL_H_
 #define BLGY_PRXY_BIO_SERIAL_H_
 
-#define C_PRXY
+// #define C_PRXY
 // #define C_GEN
 // #define C_TO_JSON
 
@@ -141,7 +141,7 @@ struct blgy_prxy_bio_serial_schema_field {
     extern struct blgy_prxy_bio_serial_schema_field field_##_name;
 
 ssize_t blgy_prxy_bio_serial_schema_serialize(
-    struct blgy_prxy_bio_serial_schema_field **schema, char **buf_p
+    struct blgy_prxy_bio_serial_schema_field **schema, char *buf
 );
 
 ssize_t blgy_prxy_bio_serial_schema_deserialize(
@@ -149,8 +149,13 @@ ssize_t blgy_prxy_bio_serial_schema_deserialize(
     char *buf
 );
 
+size_t blgy_prxy_bio_serial_size(
+    struct blgy_prxy_bio_info *info,
+    struct blgy_prxy_bio_serial_schema_field **schema
+);
+
 ssize_t blgy_prxy_bio_serialize(
-    struct blgy_prxy_bio_info *bio, char **buf_p,
+    struct blgy_prxy_bio_info *info, char *buf,
     struct blgy_prxy_bio_serial_schema_field **schema
 );
 
