@@ -27,10 +27,7 @@ static inline ssize_t first_word_size(const char *buf, size_t cnt)
         ptr++;
     }
 
-    if (ptr == cnt)
-        return ptr;
-
-    return ptr - 1;
+    return ptr;
 }
 
 #endif

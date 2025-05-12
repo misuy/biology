@@ -10,16 +10,19 @@ struct blgy_prxy_dev_enable_config {
 };
 
 struct blgy_prxy_dev_config {
+    const char *name;
     const char *target_path;
 };
 
 struct blgy_prxy_dev {
+    const char *name;
     struct block_device *bdev;
     struct gendisk *gd;
     struct file *target;
     bool enabled;
     struct blgy_prxy_dumps *dumps;
     atomic_t bio_id_counter;
+    atomic_t bio_inflight;
     ktime_t start_ts;
     struct kobject kobj;
 };

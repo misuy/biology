@@ -56,6 +56,8 @@ static void blgy_prxy_bio_dump_work(struct work_struct *work)
     blgy_prxy_dump(bio->dump, bio);
 
     bio_endio(bio->bio);
+    atomic_dec(&bio->dev->bio_inflight);
+
     blgy_prxy_bio_destroy(bio);
 }
 
@@ -110,6 +112,7 @@ void blgy_prxy_process_bio(struct blgy_prxy_dev *dev, struct bio *bio)
 
     bio_advance(bio, clone->bi_iter.bi_size);
 
+    atomic_inc(&dev->bio_inflight);
     submit_bio_noacct(clone);
 
     return;

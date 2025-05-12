@@ -17,13 +17,23 @@ struct blgy_prxy_ctl_sysfs_entry {
 
 static ssize_t _ctl_create(const char *buf, ssize_t cnt)
 {
-    int ret = 0;
+    int ret = 0, offset = 0;
+    char *name = NULL;
     struct blgy_prxy_dev_config config;
 
     if (cnt <= 0)
         return -EINVAL;
 
-    config.target_path = buf;
+    offset = first_word_size(buf, cnt);
+    if (offset == cnt)
+        return -EINVAL;
+
+    name = kzalloc(offset + 1, GFP_KERNEL);
+    strncpy(name, buf, offset);
+    config.name = name;
+
+    config.target_path = buf + offset + 1;
+
     if ((ret = blgy_prxy_dev_create(config)) != 0) {
         BLGY_PRXY_ERR("failed to create biology proxy device, err: %i", ret);
         return ret;
@@ -37,11 +47,11 @@ static ssize_t ctl_sysfs_entry_ctl_store(const char *buf, size_t cnt)
     int ret = 0;
     int offset = first_word_size(buf, cnt);
 
-    if (offset < 0)
+    if (offset == cnt)
         return -EINVAL;
 
     if (strncmp("create", buf, offset) == 0) {
-        ret = _ctl_create(buf + offset + 2, cnt - offset - 2);
+        ret = _ctl_create(buf + offset + 1, cnt - offset - 1);
         if (ret < 0)
             return ret;
 

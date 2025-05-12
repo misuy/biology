@@ -46,11 +46,11 @@ static ssize_t dev_ctl_sysfs_entry_ctl_store(struct blgy_prxy_dev *dev,
     int ret = 0;
     int offset = first_word_size(buf, cnt);
 
-    if (offset < 0)
-        return -EINVAL;
-
     if (strncmp("enable", buf, offset) == 0) {
-        ret = _dev_ctl_enable(dev, buf + offset + 2, cnt - offset - 2);
+        if (offset == cnt)
+            return -EINVAL;
+
+        ret = _dev_ctl_enable(dev, buf + offset + 1, cnt - offset - 1);
         if (ret < 0)
             return ret;
 
@@ -71,6 +71,40 @@ static ssize_t dev_ctl_sysfs_entry_ctl_store(struct blgy_prxy_dev *dev,
 static struct blgy_prxy_dev_ctl_sysfs_entry sysfs_entry_ctl = {
     .attr = { .name = "ctl", .mode = S_IWUSR },
     .store = dev_ctl_sysfs_entry_ctl_store,
+};
+
+static ssize_t dev_ctl_sysfs_entry_active_show(struct blgy_prxy_dev *dev,
+                                               char *buf)
+{
+    return snprintf(buf, sizeof(int), "%d", dev->enabled);
+}
+
+static struct blgy_prxy_dev_ctl_sysfs_entry sysfs_entry_active = {
+    .attr = { .name = "active", .mode = S_IRUSR },
+    .show = dev_ctl_sysfs_entry_active_show,
+};
+
+static ssize_t dev_ctl_sysfs_entry_traced_show(struct blgy_prxy_dev *dev,
+                                               char *buf)
+{
+    return snprintf(buf, sizeof(int), "%d",
+                    atomic_read(&dev->bio_id_counter) + 1);
+}
+
+static struct blgy_prxy_dev_ctl_sysfs_entry sysfs_entry_traced = {
+    .attr = { .name = "traced", .mode = S_IRUSR },
+    .show = dev_ctl_sysfs_entry_traced_show,
+};
+
+static ssize_t dev_ctl_sysfs_entry_inflight_show(struct blgy_prxy_dev *dev,
+                                               char *buf)
+{
+    return snprintf(buf, sizeof(int), "%d", atomic_read(&dev->bio_inflight));
+}
+
+static struct blgy_prxy_dev_ctl_sysfs_entry sysfs_entry_inflight = {
+    .attr = { .name = "inflight", .mode = S_IRUSR },
+    .show = dev_ctl_sysfs_entry_inflight_show,
 };
 
 static ssize_t dev_ctl_sysfs_attr_show(struct kobject *kobj,
@@ -103,6 +137,9 @@ static struct sysfs_ops dev_ctl_sysfs_ops = {
 
 static struct attribute *dev_ctl_attrs[] = {
     &sysfs_entry_ctl.attr,
+    &sysfs_entry_active.attr,
+    &sysfs_entry_traced.attr,
+    &sysfs_entry_inflight.attr,
     NULL,
 };
 ATTRIBUTE_GROUPS(dev_ctl);

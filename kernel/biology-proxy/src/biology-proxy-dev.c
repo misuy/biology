@@ -48,7 +48,7 @@ int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
     dev->start_ts = ktime_get_boottime();
     dev->enabled = true;
 
-    BLGY_PRXY_INFO("proxy device %s enabled", dev->gd->disk_name);
+    BLGY_PRXY_INFO("proxy device %s enabled", dev->name);
 
     return 0;
 }
@@ -64,7 +64,7 @@ void blgy_prxy_dev_disable(struct blgy_prxy_dev *dev)
     kfree(dev->dumps);
     dev->dumps = NULL;
 
-    BLGY_PRXY_INFO("proxy device %s disabled", dev->gd->disk_name);
+    BLGY_PRXY_INFO("proxy device %s disabled", dev->name);
 }
 
 int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
@@ -89,6 +89,8 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
         goto err_free_dev;
     }
 
+    dev->name = cfg.name;
+
     queue_limits_stack_bdev(&lims, file_bdev(dev->target), 0, "biology-proxy");
 
     dev->gd = blk_alloc_disk(&lims, NUMA_NO_NODE);
@@ -108,8 +110,7 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
     blk_queue_flag_set(QUEUE_FLAG_NOMERGES, dev->gd->queue);
     blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, dev->gd->queue);
 
-    snprintf(dev->gd->disk_name, BDEVNAME_SIZE, BLGY_PRXY_MOD_NAME_SHORT "%s",
-             file_bdev(dev->target)->bd_disk->disk_name);
+    snprintf(dev->gd->disk_name, BDEVNAME_SIZE, "%s", dev->name);
 
     ret = add_disk(dev->gd);
     if (ret) {
@@ -121,6 +122,8 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
 
     dev->enabled = false;
     dev->dumps = NULL;
+    atomic_set(&dev->bio_id_counter, -1);
+    atomic_set(&dev->bio_inflight, 0);
 
     ret = blgy_prxy_dev_ctl_init(dev);
     if (ret) {
@@ -131,7 +134,7 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
     atomic_inc(&devs_cnt);
 
     BLGY_PRXY_INFO("created proxy device %s (target = %s)",
-                       dev->gd->disk_name, cfg.target_path);
+                   dev->name, cfg.target_path);
 
     return 0;
 
@@ -161,12 +164,13 @@ static void _blgy_prxy_dev_destroy_work(struct work_struct *work)
                      work);
     struct blgy_prxy_dev *dev = destroy_work->dev;
 
-    BLGY_PRXY_INFO("destroying proxy device %s", dev->gd->disk_name);
+    BLGY_PRXY_INFO("destroying proxy device %s", dev->name);
 
     blgy_prxy_dev_ctl_destroy(dev);
     del_gendisk(dev->gd);
     put_disk(dev->gd);
     bdev_fput(dev->target);
+    kfree(dev->name);
     kfree(dev);
     kfree(destroy_work);
     atomic_dec(&devs_cnt);
@@ -178,7 +182,7 @@ void blgy_prxy_dev_destroy(struct blgy_prxy_dev *dev)
         kzalloc(sizeof(struct blgy_prxy_dev_destroy_work), GFP_KERNEL);
 
     if (!work) {
-        BLGY_PRXY_ERR("failed to allocate memory for dev %s destroy work", dev->gd->disk_name);
+        BLGY_PRXY_ERR("failed to allocate memory for dev %s destroy work", dev->name);
         return;
     }
 
