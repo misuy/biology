@@ -7,6 +7,11 @@
 
 struct blgy_prxy_dev;
 
+struct blgy_prxy_bio_info_payload {
+    size_t size;
+    struct bio *data;
+};
+
 struct blgy_prxy_bio_info {
     int cpu;
     uint32_t id;
@@ -15,6 +20,8 @@ struct blgy_prxy_bio_info {
     sector_t sector;
     unsigned int size;
     blk_opf_t op;
+    blk_status_t status;
+    struct blgy_prxy_bio_info_payload payload;
 };
 
 struct blgy_prxy_bio {

@@ -47,7 +47,9 @@ blgy_prxy_dump_get_by_cpu(struct blgy_prxy_dumps *dumps, int cpu)
     return dumps->dumps + cpu;
 }
 
-int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps, const char *dir_path);
+int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps,
+                         struct blgy_prxy_bio_serial_schema_field **schema,
+                         const char *dir_path);
 void blgy_prxy_dumps_destroy(struct blgy_prxy_dumps *dumps);
 int blgy_prxy_dump(struct blgy_prxy_dump *dump, struct blgy_prxy_bio *bio);
 

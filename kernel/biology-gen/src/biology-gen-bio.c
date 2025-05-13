@@ -22,10 +22,15 @@ blgy_gen_bio_create(struct blgy_prxy_bio_info info, struct block_device *bdev)
         return NULL;
     }
 
-    buf = kmalloc(info.size, GFP_KERNEL);
-    if (!buf) {
-        BLGY_GEN_ERR("failed to allocate buffer for bio payload");
-        return NULL;
+    if (info.payload.size != 0) {
+        buf = info.payload.data;
+    }
+    else {
+        buf = kmalloc(info.size, GFP_KERNEL);
+        if (!buf) {
+            BLGY_GEN_ERR("failed to allocate buffer for bio payload");
+            return NULL;
+        }
     }
 
     bio->bi_iter.bi_sector = info.sector;

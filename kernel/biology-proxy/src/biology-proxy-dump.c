@@ -141,7 +141,9 @@ static void blgy_prxy_dump_destroy(struct blgy_prxy_dump *dump)
 }
 
 static int
-blgy_prxy_dump_init(struct blgy_prxy_dump *dump, const char *dir_path, int cpu)
+blgy_prxy_dump_init(struct blgy_prxy_dump *dump,
+                    struct blgy_prxy_bio_serial_schema_field **schema,
+                    const char *dir_path, int cpu)
 {
     int ret = 0;
     char *file_path = kzalloc(PATH_MAX, GFP_KERNEL);
@@ -149,7 +151,7 @@ blgy_prxy_dump_init(struct blgy_prxy_dump *dump, const char *dir_path, int cpu)
         return -ENOMEM;
 
     dump->cpu = cpu;
-    dump->schema = blgy_prxy_bio_serial_schema_default;
+    dump->schema = schema;
     mutex_init(&dump->lock);
 
     _dump_build_file_path(file_path, dir_path, dump->cpu);
@@ -169,7 +171,9 @@ out:
     return ret;
 }
 
-int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps, const char *dir_path)
+int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps,
+                         struct blgy_prxy_bio_serial_schema_field **schema,
+                         const char *dir_path)
 {
     int cpu, ret;
 
@@ -182,7 +186,7 @@ int blgy_prxy_dumps_init(struct blgy_prxy_dumps *dumps, const char *dir_path)
 
     for (cpu = 0; cpu < dumps->cpus_num; cpu++) {
         if ((ret = blgy_prxy_dump_init(blgy_prxy_dump_get_by_cpu(dumps, cpu),
-                                       dir_path, cpu))) {
+                                       schema, dir_path, cpu))) {
             kfree(dumps->dumps);
             return ret;
         }

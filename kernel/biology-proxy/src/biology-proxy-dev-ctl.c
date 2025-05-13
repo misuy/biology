@@ -15,12 +15,21 @@ static ssize_t _dev_ctl_enable(struct blgy_prxy_dev *dev, const char *buf,
                                ssize_t cnt)
 {
     int ret;
+    int offset;
+    char *dump_payload;
     struct blgy_prxy_dev_enable_config config;
 
-    if (cnt <= 0)
+    offset = first_word_size(buf, cnt);
+
+    if (offset == cnt)
         return -EINVAL;
 
-    config.dump_dir = buf;
+    dump_payload = kzalloc(offset + 1, GFP_KERNEL);
+    strncpy(dump_payload, buf, offset);
+    config.dump_payload = strcmp("1", dump_payload) == 0;
+    kfree(dump_payload);
+
+    config.dump_dir = buf + offset + 1;
     if ((ret = blgy_prxy_dev_enable(dev, config)) != 0) {
         BLGY_PRXY_ERR("failed to enable biology proxy device, err: %i", ret);
         return ret;

@@ -4,6 +4,11 @@
 #include <linux/blk_types.h>
 #include <linux/types.h>
 
+struct blgy_prxy_bio_info_payload {
+    size_t size;
+    char *data;
+};
+
 struct blgy_prxy_bio_info {
     uint32_t id;
     int cpu;
@@ -12,6 +17,8 @@ struct blgy_prxy_bio_info {
     sector_t sector;
     unsigned int size;
     blk_opf_t op;
+    blk_status_t status;
+    struct blgy_prxy_bio_info_payload payload;
 };
 
 struct bio *

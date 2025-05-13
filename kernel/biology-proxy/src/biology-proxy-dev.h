@@ -7,6 +7,7 @@
 
 struct blgy_prxy_dev_enable_config {
     const char *dump_dir;
+    bool dump_payload;
 };
 
 struct blgy_prxy_dev_config {

@@ -48,6 +48,73 @@ define_blgy_prxy_bio_serial_schema_field(
     blgy_prxy_bio_serial_schema_field_deserialize_fn_default
 );
 
+define_blgy_prxy_bio_serial_schema_field(
+    6, cpu, cpu,
+    blgy_prxy_bio_serial_schema_field_size_fn_default,
+    blgy_prxy_bio_serial_schema_field_ptr_fn_default,
+    blgy_prxy_bio_serial_schema_field_serialize_fn_default,
+    blgy_prxy_bio_serial_schema_field_deserialize_fn_default
+);
+
+define_blgy_prxy_bio_serial_schema_field(
+    7, status, status,
+    blgy_prxy_bio_serial_schema_field_size_fn_default,
+    blgy_prxy_bio_serial_schema_field_ptr_fn_default,
+    blgy_prxy_bio_serial_schema_field_serialize_fn_default,
+    blgy_prxy_bio_serial_schema_field_deserialize_fn_default
+);
+
+#define blgy_prxy_bio_serial_schema_field_size_fn_payload(_field) \
+    return info->_field.size + sizeof(info->_field.size);
+
+#ifdef C_PRXY
+
+#define blgy_prxy_bio_serial_schema_field_serialize_fn_payload(_field)      \
+    struct bio *bio = info->_field.data;                                    \
+    struct bio_vec *bvec = NULL;                                            \
+    int i = 0;                                                              \
+    size_t offset = 0;                                                      \
+                                                                            \
+    memcpy(buf + offset, &info->_field.size, sizeof(info->_field.size));    \
+    offset += sizeof(info->_field.size);                                    \
+                                                                            \
+    if (info->_field.size == 0)                                             \
+        return;                                                             \
+                                                                            \
+    for (i = 0; i < bio->bi_vcnt; i++) {                                    \
+        bvec = bio->bi_io_vec + i;                                          \
+        memcpy(buf + offset, bvec->bv_page + bvec->bv_offset, bvec->bv_len);\
+        offset += bvec->bv_len;                                             \
+    }                                                                       \
+
+#define blgy_prxy_bio_serial_schema_field_deserialize_fn_payload(_field)    \
+    blgy_prxy_bio_serial_schema_field_deserialize_fn_stub(_field)
+
+#else
+
+#define blgy_prxy_bio_serial_schema_field_serialize_fn_payload(_field)      \
+    blgy_prxy_bio_serial_schema_field_serialize_fn_stub(_field)
+
+#define blgy_prxy_bio_serial_schema_field_deserialize_fn_payload(_field)    \
+    memcpy(&info->_field.size, buf, sizeof(info->_field.size));             \
+    if (info->_field.size == 0) {                                           \
+        info->_field.data = NULL;                                           \
+        return;                                                             \
+    }                                                                       \
+    info->_field.data = MALLOC_OVERRIDE(info->_field.size);                 \
+    memcpy(info->_field.data, buf + sizeof(info->_field.size),              \
+           info->_field.size);                                              \
+
+#endif
+
+define_blgy_prxy_bio_serial_schema_field(
+    8, payload, payload,
+    blgy_prxy_bio_serial_schema_field_size_fn_payload,
+    blgy_prxy_bio_serial_schema_field_ptr_fn_stub,
+    blgy_prxy_bio_serial_schema_field_serialize_fn_payload,
+    blgy_prxy_bio_serial_schema_field_deserialize_fn_payload
+);
+
 struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_default[] = {
     declare_blgy_prxy_bio_serial_schema_field(id),
     declare_blgy_prxy_bio_serial_schema_field(start_ts),
@@ -55,6 +122,21 @@ struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_default[] 
     declare_blgy_prxy_bio_serial_schema_field(sector),
     declare_blgy_prxy_bio_serial_schema_field(size),
     declare_blgy_prxy_bio_serial_schema_field(op),
+    declare_blgy_prxy_bio_serial_schema_field(cpu),
+    declare_blgy_prxy_bio_serial_schema_field(status),
+    NULL
+};
+
+struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_payload[] = {
+    declare_blgy_prxy_bio_serial_schema_field(id),
+    declare_blgy_prxy_bio_serial_schema_field(start_ts),
+    declare_blgy_prxy_bio_serial_schema_field(end_ts),
+    declare_blgy_prxy_bio_serial_schema_field(sector),
+    declare_blgy_prxy_bio_serial_schema_field(size),
+    declare_blgy_prxy_bio_serial_schema_field(op),
+    declare_blgy_prxy_bio_serial_schema_field(cpu),
+    declare_blgy_prxy_bio_serial_schema_field(status),
+    declare_blgy_prxy_bio_serial_schema_field(payload),
     NULL
 };
 

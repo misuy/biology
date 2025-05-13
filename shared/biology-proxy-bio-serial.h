@@ -76,6 +76,7 @@ typedef void (*serial_schema_field_deserialize_fn) (
 
 struct blgy_prxy_bio_serial_schema_field {
     uint32_t id;
+    char *name;
     serial_schema_field_size_fn size;
     serial_schema_field_ptr_fn ptr;
     serial_schema_field_serialize_fn serialize;
@@ -85,14 +86,26 @@ struct blgy_prxy_bio_serial_schema_field {
 #define blgy_prxy_bio_serial_schema_field_size_fn_default(_field) \
     return sizeof(info->_field);
 
+#define blgy_prxy_bio_serial_schema_field_size_fn_stub(_field) \
+    return 0;
+
 #define blgy_prxy_bio_serial_schema_field_ptr_fn_default(_field) \
     return &(info->_field);
+
+#define blgy_prxy_bio_serial_schema_field_ptr_fn_stub(_field) \
+    return NULL;
 
 #define blgy_prxy_bio_serial_schema_field_serialize_fn_default(_field) \
     memcpy(buf, schema->ptr(info), schema->size(info));
 
+#define blgy_prxy_bio_serial_schema_field_serialize_fn_stub(_field) \
+    return;
+
 #define blgy_prxy_bio_serial_schema_field_deserialize_fn_default(_field) \
     memcpy(schema->ptr(info), buf, schema->size(info));
+
+#define blgy_prxy_bio_serial_schema_field_deserialize_fn_stub(_field) \
+    return;
 
 #define define_blgy_prxy_bio_serial_schema_field(_id, _name, _field,            \
                                                  _size_fn, _ptr_fn,             \
@@ -128,6 +141,7 @@ struct blgy_prxy_bio_serial_schema_field {
                                                                                 \
     struct blgy_prxy_bio_serial_schema_field field_##_name = {                  \
         .id = _id,                                                              \
+        .name = #_name,                                                         \
         .size = field_##_name##_size,                                           \
         .ptr = field_##_name##_ptr,                                             \
         .serialize = field_##_name##_serialize,                                 \
@@ -174,5 +188,6 @@ extern_blgy_prxy_bio_serial_schema_field(size);
 extern_blgy_prxy_bio_serial_schema_field(op);
 
 extern struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_default[];
+extern struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_payload[];
 
 #endif

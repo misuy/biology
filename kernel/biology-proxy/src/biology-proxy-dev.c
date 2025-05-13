@@ -6,6 +6,7 @@
 #include "biology-proxy-common.h"
 #include "biology-proxy-dev-ctl.h"
 #include "biology-proxy-dump.h"
+#include "biology-proxy-bio-serial.h"
 
 atomic_t devs_cnt;
 
@@ -30,6 +31,7 @@ int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
                          struct blgy_prxy_dev_enable_config config)
 {
     int ret;
+    struct blgy_prxy_bio_serial_schema_field **schema;
 
     if (dev->dumps)
         return -EALREADY;
@@ -38,7 +40,12 @@ int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
     if (!dev->dumps)
         return -ENOMEM;
 
-    if ((ret = blgy_prxy_dumps_init(dev->dumps, config.dump_dir))) {
+    if (config.dump_payload)
+        schema = blgy_prxy_bio_serial_schema_payload;
+    else
+        schema = blgy_prxy_bio_serial_schema_default;
+
+    if ((ret = blgy_prxy_dumps_init(dev->dumps, schema, config.dump_dir))) {
         kfree(dev->dumps);
         dev->dumps = NULL;
         return ret;
