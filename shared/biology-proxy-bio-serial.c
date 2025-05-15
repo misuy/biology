@@ -90,7 +90,7 @@ define_blgy_prxy_bio_serial_schema_field(
 #define blgy_prxy_bio_serial_schema_field_deserialize_fn_payload(_field)    \
     blgy_prxy_bio_serial_schema_field_deserialize_fn_stub(_field)
 
-#else
+#elif C_GEN
 
 #define blgy_prxy_bio_serial_schema_field_serialize_fn_payload(_field)      \
     blgy_prxy_bio_serial_schema_field_serialize_fn_stub(_field)
@@ -104,6 +104,14 @@ define_blgy_prxy_bio_serial_schema_field(
     info->_field.data = MALLOC_OVERRIDE(info->_field.size);                 \
     memcpy(info->_field.data, buf + sizeof(info->_field.size),              \
            info->_field.size);                                              \
+
+#else
+
+#define blgy_prxy_bio_serial_schema_field_serialize_fn_payload(_field)      \
+    blgy_prxy_bio_serial_schema_field_serialize_fn_stub(_field)
+
+#define blgy_prxy_bio_serial_schema_field_deserialize_fn_payload(_field)      \
+    memcpy(&info->_field.size, buf, sizeof(info->_field.size));
 
 #endif
 
@@ -140,13 +148,26 @@ struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_payload[] 
     NULL
 };
 
+struct blgy_prxy_bio_serial_schema_field *blgy_prxy_bio_serial_schema_all[] = {
+    declare_blgy_prxy_bio_serial_schema_field(id),
+    declare_blgy_prxy_bio_serial_schema_field(start_ts),
+    declare_blgy_prxy_bio_serial_schema_field(end_ts),
+    declare_blgy_prxy_bio_serial_schema_field(sector),
+    declare_blgy_prxy_bio_serial_schema_field(size),
+    declare_blgy_prxy_bio_serial_schema_field(op),
+    declare_blgy_prxy_bio_serial_schema_field(cpu),
+    declare_blgy_prxy_bio_serial_schema_field(status),
+    declare_blgy_prxy_bio_serial_schema_field(payload),
+    NULL
+};
+
 static struct blgy_prxy_bio_serial_schema_field *
 _get_serial_schema_field_by_id(uint32_t id)
 {
     size_t offset = 0;
-    while (blgy_prxy_bio_serial_schema_default[offset] != NULL) {
-        if (blgy_prxy_bio_serial_schema_default[offset]->id == id)
-            return blgy_prxy_bio_serial_schema_default[offset];
+    while (blgy_prxy_bio_serial_schema_all[offset] != NULL) {
+        if (blgy_prxy_bio_serial_schema_all[offset]->id == id)
+            return blgy_prxy_bio_serial_schema_all[offset];
 
         offset++;
     }

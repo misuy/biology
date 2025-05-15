@@ -11,6 +11,8 @@ enum blgy_cli_command_arg_type {
 
 struct blgy_cli_command_arg_def {
     enum blgy_cli_command_arg_type type;
+    int required;
+    void *default_value;
     char *name;
 };
 
@@ -36,11 +38,48 @@ struct blgy_cli_command {
 
 #define BLGY_ARG_NAME(_command, _name) _command##_arg_def_##_name
 
-#define BLGY_ARG_DEFINE(_command, _type, _name)                         \
+#define BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name) _command##_arg_def_##_name##_default
+
+#define BLGY_ARG_DEFINE_DEFAULT_VALUE_INT(_command, _name, _value) \
+    int BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name) = _value;
+
+#define BLGY_ARG_DEFINE_DEFAULT_VALUE_BOOL(_command, _name, _value) \
+    BLGY_ARG_DEFINE_DEFAULT_VALUE_INT(_command, _name, _value)
+
+#define BLGY_ARG_DEFINE_DEFAULT_VALUE_STRING(_command, _name, _value) \
+    char *BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name) = _value;
+
+#define BLGY_ARG_DEFINE(_command, _name, _type, _required, _default)    \
     struct blgy_cli_command_arg_def BLGY_ARG_NAME(_command, _name) = {  \
         .type = _type,                                                  \
         .name = #_name,                                                 \
+        .required = _required,                                          \
+        .default_value = _default,                                      \
     };                                                                  \
+
+#define BLGY_ARG_DEFINE_INT_REQUIRED(_command, _name) \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_INT, 1, NULL)
+
+#define BLGY_ARG_DEFINE_INT(_command, _name, _default)                  \
+    BLGY_ARG_DEFINE_DEFAULT_VALUE_INT(_command, _name, _default)        \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_INT, 0,  \
+                    &BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name))      \
+
+#define BLGY_ARG_DEFINE_BOOL_REQUIRED(_command, _name) \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_BOOL, 1, NULL)
+
+#define BLGY_ARG_DEFINE_BOOL(_command, _name, _default)                 \
+    BLGY_ARG_DEFINE_DEFAULT_VALUE_BOOL(_command, _name, _default)       \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_BOOL, 0, \
+                    &BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name))      \
+
+#define BLGY_ARG_DEFINE_STRING_REQUIRED(_command, _name) \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_STRING, 1, NULL)
+
+#define BLGY_ARG_DEFINE_STRING(_command, _name, _default)                   \
+    BLGY_ARG_DEFINE_DEFAULT_VALUE_STRING(_command, _name, _default)         \
+    BLGY_ARG_DEFINE(_command, _name, BLGY_CLI_COMMAND_ARG_TYPE_STRING, 0,   \
+                    &BLGY_ARG_DEFAULT_VALUE_NAME(_command, _name))          \
 
 #define BLGY_ARG_FORMAT(_command, _name) &BLGY_ARG_NAME(_command, _name)
 

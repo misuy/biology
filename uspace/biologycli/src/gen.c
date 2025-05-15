@@ -6,11 +6,11 @@
 #include "include/biologylib/gen.h"
 #include "common.h"
 
-BLGY_ARG_DEFINE(gen_start, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
-BLGY_ARG_DEFINE(gen_start, BLGY_CLI_COMMAND_ARG_TYPE_STRING, device);
-BLGY_ARG_DEFINE(gen_start, BLGY_CLI_COMMAND_ARG_TYPE_STRING, dump);
-BLGY_ARG_DEFINE(gen_start, BLGY_CLI_COMMAND_ARG_TYPE_INT, cpus);
-BLGY_ARG_DEFINE(gen_start, BLGY_CLI_COMMAND_ARG_TYPE_BOOL, wait);
+BLGY_ARG_DEFINE_STRING_REQUIRED(gen_start, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(gen_start, device);
+BLGY_ARG_DEFINE_STRING_REQUIRED(gen_start, dump);
+BLGY_ARG_DEFINE_INT_REQUIRED(gen_start, cpus);
+BLGY_ARG_DEFINE_BOOL(gen_start, wait, 1);
 
 static int gen_create_handle(struct blgy_cli_command *command)
 {
@@ -79,7 +79,7 @@ BLGY_COMMAND_DEFINE(
 );
 
 
-BLGY_ARG_DEFINE(gen_stop, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(gen_stop, name);
 
 static int gen_stop_handle(struct blgy_cli_command *command)
 {

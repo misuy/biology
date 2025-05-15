@@ -73,9 +73,7 @@ blgy_cli_command_def_parse(struct blgy_cli_command_def **defs,
 static int blgy_cli_arg_parse(struct blgy_cli_command_arg *arg,
                               int argc, char **argv)
 {
-    if (argc < 2)
-        return -EINVAL;
-
+    printf("parsing %s, %d\n", arg->def->name, argc);
     int i = 0;
     while (i < (argc - 1)) {
         if (strcmp(argv[i], arg->def->name) == 0) {
@@ -107,6 +105,25 @@ static int blgy_cli_arg_parse(struct blgy_cli_command_arg *arg,
         }
 
         i++;
+    }
+
+    if (!arg->def->required) {
+        char *s = NULL;
+        switch (arg->def->type) {
+            case BLGY_CLI_COMMAND_ARG_TYPE_BOOL:
+            case BLGY_CLI_COMMAND_ARG_TYPE_INT:
+                arg->value = malloc(sizeof(int));
+                memcpy(arg->value, arg->def->default_value, sizeof(int));
+                break;
+
+            case BLGY_CLI_COMMAND_ARG_TYPE_STRING:
+                s = *((char **) arg->def->default_value);
+                arg->value = malloc(strlen(s));
+                strcpy(arg->value, s);
+                break;
+        }
+
+        return 0;
     }
 
     return -EINVAL;

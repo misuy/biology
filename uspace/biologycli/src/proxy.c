@@ -7,8 +7,8 @@
 #include "common.h"
 
 
-BLGY_ARG_DEFINE(proxy_create, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
-BLGY_ARG_DEFINE(proxy_create, BLGY_CLI_COMMAND_ARG_TYPE_STRING, device);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_create, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_create, device);
 
 static int proxy_create_handle(struct blgy_cli_command *command)
 {
@@ -41,8 +41,9 @@ BLGY_COMMAND_DEFINE(
 );
 
 
-BLGY_ARG_DEFINE(proxy_enable, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
-BLGY_ARG_DEFINE(proxy_enable, BLGY_CLI_COMMAND_ARG_TYPE_STRING, dump);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_enable, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_enable, dump);
+BLGY_ARG_DEFINE_BOOL(proxy_enable, dump_payload, 0);
 
 static int proxy_enable_handle(struct blgy_cli_command *command)
 {
@@ -55,10 +56,18 @@ static int proxy_enable_handle(struct blgy_cli_command *command)
     char *dump = (char *)
         blgy_cli_command_arg_get(command->args,
                                  BLGY_ARG_FORMAT(proxy_enable, dump));
-    if (!name)
+    if (!dump)
         return -EINVAL;
 
-    int ret = blgy_lib_prxy_dev_enable(name, dump);
+    int *dump_payload_p = (int *)
+        blgy_cli_command_arg_get(command->args,
+                                 BLGY_ARG_FORMAT(proxy_enable, dump_payload));
+    if (!dump_payload_p)
+        return -EINVAL;
+
+    int dump_payload = *dump_payload_p;
+
+    int ret = blgy_lib_prxy_dev_enable(name, dump, dump_payload);
     if (ret < 0)
         BLGY_CLI_ERR("failed to enable proxy (%s)", name);
     else
@@ -71,11 +80,12 @@ BLGY_COMMAND_DEFINE(
     proxy_enable_handle,
     BLGY_ARG_FORMAT(proxy_enable, name),
     BLGY_ARG_FORMAT(proxy_enable, dump),
+    BLGY_ARG_FORMAT(proxy_enable, dump_payload),
     NULL
 );
 
 
-BLGY_ARG_DEFINE(proxy_disable, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_disable, name);
 
 static int proxy_disable_handle(struct blgy_cli_command *command)
 {
@@ -101,7 +111,7 @@ BLGY_COMMAND_DEFINE(
 );
 
 
-BLGY_ARG_DEFINE(proxy_destroy, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_destroy, name);
 
 static int proxy_destroy_handle(struct blgy_cli_command *command)
 {
@@ -127,7 +137,7 @@ BLGY_COMMAND_DEFINE(
 );
 
 
-BLGY_ARG_DEFINE(proxy_info, BLGY_CLI_COMMAND_ARG_TYPE_STRING, name);
+BLGY_ARG_DEFINE_STRING_REQUIRED(proxy_info, name);
 
 static int proxy_info_handle(struct blgy_cli_command *command)
 {

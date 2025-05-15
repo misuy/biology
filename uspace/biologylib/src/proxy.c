@@ -85,9 +85,9 @@ int blgy_lib_prxy_create_dev(char *name, char *device)
     return ret;
 }
 
-#define BLGY_LIB_PRXY_DEV_ENABLE_CMD "enable %s"
+#define BLGY_LIB_PRXY_DEV_ENABLE_CMD "enable %d %s"
 
-int blgy_lib_prxy_dev_enable(char *name, char *dump)
+int blgy_lib_prxy_dev_enable(char *name, char *dump, int dump_payload)
 {
     int ret = 0;
     FILE *ctl = blgy_lib_prxy_open_dev_ctl(name);
@@ -101,7 +101,7 @@ int blgy_lib_prxy_dev_enable(char *name, char *dump)
         }
     }
 
-    ret = fprintf(ctl, BLGY_LIB_PRXY_DEV_ENABLE_CMD, dump);
+    ret = fprintf(ctl, BLGY_LIB_PRXY_DEV_ENABLE_CMD, dump_payload ? 1 : 0, dump);
     fclose(ctl);
     return 0;
 }
