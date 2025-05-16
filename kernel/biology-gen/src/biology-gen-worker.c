@@ -29,7 +29,7 @@ blgy_gen_worker_create(struct blgy_gen_group *group, int cpu, char *dump_path,
 
     worker->group = group;
     worker->cpu = cpu;
-    worker->start_ts = ktime_get_boottime();
+    worker->start_ts = ktime_to_ns(ktime_get_boottime());
 
     kref_get(&worker->group->refcount);
 
@@ -91,7 +91,7 @@ static void blgy_gen_work(struct work_struct *_work)
 
 static int blgy_gen_work_submit(struct blgy_gen_work *work)
 {
-    ktime_t now, delay;
+    s64 now, delay;
     struct blgy_prxy_bio_info info;
     enum blgy_gen_parser_read_next_ret ret;
 
@@ -100,6 +100,7 @@ static int blgy_gen_work_submit(struct blgy_gen_work *work)
         return 0;
     }
 
+    memset(&info, 0, sizeof(struct blgy_prxy_bio_info));
     ret = blgy_gen_parser_read_next(&work->worker->parser, &info);
     if (ret == BLGY_GEN_PARSER_READ_NEXT_EMPTY) {
         blgy_gen_work_destroy(work);
@@ -118,7 +119,7 @@ static int blgy_gen_work_submit(struct blgy_gen_work *work)
 
     INIT_DELAYED_WORK(&work->work, blgy_gen_work);
 
-    now = ktime_get_boottime();
+    now = ktime_to_ns(ktime_get_boottime());
     delay = ((now - work->worker->start_ts) < info.start_ts)
             ? info.start_ts - (now - work->worker->start_ts)
             : 0;

@@ -1,0 +1,10 @@
+[global]
+readwrite=randrw
+blocksize_range=16k-32k
+direct=1
+random_generator=lfsr
+size=300m
+ioengine=libaio
+
+[test]
+filename=/dev/bpsda

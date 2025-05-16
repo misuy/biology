@@ -24,7 +24,7 @@ struct blgy_gen_group {
 struct blgy_gen_worker {
     struct blgy_gen_group *group;
     int cpu;
-    ktime_t start_ts;
+    s64 start_ts;
     struct blgy_gen_parser parser;
     struct file *target;
 };

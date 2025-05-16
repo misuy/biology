@@ -52,7 +52,7 @@ int blgy_prxy_dev_enable(struct blgy_prxy_dev *dev,
     }
 
     atomic_set(&dev->bio_id_counter, -1);
-    dev->start_ts = ktime_get_boottime();
+    dev->start_ts = ktime_to_ns(ktime_get_boottime());
     dev->enabled = true;
 
     BLGY_PRXY_INFO("proxy device %s enabled", dev->name);
@@ -114,8 +114,8 @@ int blgy_prxy_dev_create(struct blgy_prxy_dev_config cfg)
     dev->gd->fops = &blgy_prxy_dev_ops;
     set_capacity(dev->gd, bdev_nr_sectors(file_bdev(dev->target)));
 
-    blk_queue_flag_set(QUEUE_FLAG_NOMERGES, dev->gd->queue);
-    blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, dev->gd->queue);
+    //blk_queue_flag_set(QUEUE_FLAG_NOMERGES, dev->gd->queue);
+    //blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, dev->gd->queue);
 
     snprintf(dev->gd->disk_name, BDEVNAME_SIZE, "%s", dev->name);
 

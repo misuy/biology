@@ -74,7 +74,7 @@ static void blgy_prxy_bio_end_io(struct bio *clone)
     struct blgy_prxy_bio *bp_bio = clone->bi_private;
     struct bio *bio = bp_bio->bio;
 
-    bp_bio->info.end_ts = ktime_get_boottime();
+    bp_bio->info.end_ts = ktime_to_ns(ktime_get_boottime()) - bp_bio->dev->start_ts;
     bp_bio->info.status = clone->bi_status;
 
     bio->bi_status = clone->bi_status;
@@ -99,7 +99,7 @@ void blgy_prxy_process_bio(struct blgy_prxy_dev *dev, struct bio *bio)
     bp_bio->info.size = bio->bi_iter.bi_size;
     bp_bio->info.op = bio->bi_opf;
     bp_bio->info.cpu = smp_processor_id();
-    bp_bio->info.start_ts = ktime_get_boottime() - dev->start_ts;
+    bp_bio->info.start_ts = ktime_to_ns(ktime_get_boottime()) - dev->start_ts;
     bp_bio->info.payload.data = bio;
     if (bio_op(bio) == REQ_OP_WRITE)
         bp_bio->info.payload.size = bio->bi_iter.bi_size;

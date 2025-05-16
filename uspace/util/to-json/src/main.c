@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "info.h"
+#include "json.h"
 
 char *build_file_path(char *dir_path, char *file_name)
 {
@@ -29,30 +30,33 @@ char *build_file_path(char *dir_path, char *file_name)
 
 int main(int argc, char **argv)
 {
-    printf("hiii\n");
     int ret = 0;
     char *dir_path = argv[1];
+
     DIR *dir = opendir(dir_path);
     if (!dir) {
-        printf("invalid dir\n");
+        printf("err: invalid dir\n");
         return -EINVAL;
     }
 
+    json_bio_info_begin();
+
+    int first = 1;
     struct dirent *ent;
     while ((ent = readdir(dir))) {
-        printf("%s\n", ent->d_name);
         if (ent->d_type == DT_REG) {
             char *file_path = build_file_path(dir_path, ent->d_name);
-            printf("%s", file_path);
             if (!file_path) {
                 ret = -ENOMEM;
                 goto end;
             }
 
-            if ((ret = parse_dump_file(file_path)) < 0)
+            if ((ret = parse_dump_file(file_path, &first)) < 0)
                 goto end;
         }
     }
+
+    json_bio_info_end();
 
 end:
     closedir(dir);

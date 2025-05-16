@@ -1,6 +1,6 @@
 [global]
 readwrite=readwrite
-blocksize_range=4096-64k
+blocksize_range=4096-32k
 direct=1
 verify=meta
 verify_pattern=0xfafbfcfdfefafbfc

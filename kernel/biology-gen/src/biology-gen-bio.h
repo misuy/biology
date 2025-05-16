@@ -12,8 +12,8 @@ struct blgy_prxy_bio_info_payload {
 struct blgy_prxy_bio_info {
     uint32_t id;
     int cpu;
-    ktime_t start_ts;
-    ktime_t end_ts;
+    s64 start_ts;
+    s64 end_ts;
     sector_t sector;
     unsigned int size;
     blk_opf_t op;

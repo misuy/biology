@@ -3,6 +3,6 @@
 
 #include "bio-info.h"
 
-int parse_dump_file(char *path);
+int parse_dump_file(char *path, int *first);
 
 #endif

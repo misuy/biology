@@ -1,4 +1,8 @@
-OBJS = src/biology-proxy-bio-serial.o src/info.o src/main.o
+OBJS = src/biology-proxy-bio-serial.o 	\
+	src/info.o 							\
+	src/json.o 							\
+	src/main.o
+
 CFLAGS = '-DC_TO_JSON -Wall'
 BIN = to-json
 

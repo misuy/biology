@@ -6,7 +6,7 @@
 
 static void blgy_gen_bio_endio(struct bio *bio)
 {
-    BLGY_GEN_DBG("endio: %u", bio->bi_status);
+    BLGY_GEN_DBG("endio: %u, %p\n", bio->bi_status, bio->bi_private);
     kfree(bio->bi_private);
     bio_put(bio);
 }

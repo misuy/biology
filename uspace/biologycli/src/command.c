@@ -73,7 +73,6 @@ blgy_cli_command_def_parse(struct blgy_cli_command_def **defs,
 static int blgy_cli_arg_parse(struct blgy_cli_command_arg *arg,
                               int argc, char **argv)
 {
-    printf("parsing %s, %d\n", arg->def->name, argc);
     int i = 0;
     while (i < (argc - 1)) {
         if (strcmp(argv[i], arg->def->name) == 0) {
@@ -149,7 +148,6 @@ blgy_cli_command_parse(struct blgy_cli_command_def *def, int argc, char **argv)
                          command->args[i]->def->name, command->def->name);
             return NULL;
         }
-        printf("argument %s parsed\n", command->def->name);
         i++;
     }
 
